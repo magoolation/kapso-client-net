@@ -58,6 +58,19 @@ jobs:
       # forgot to regenerate after a spec change.
       - run: pwsh eng/Generate-Clients.ps1
 
+      # A file excluded by .gitignore is invisible to the diff check below: it is
+      # never committed, so there is nothing to differ from. It only surfaces as a
+      # compile error on a clean checkout, which is how the Publish/ directories
+      # were lost to the .NET template's [Pp]ublish/ rule.
+      - name: Fail if any generated file is git-ignored
+        run: |
+          ignored=$(git ls-files --others --ignored --exclude-standard -- src/Kapso/Generated)
+          if [ -n "$ignored" ]; then
+            echo "::error::These generated files are excluded by .gitignore and would be missing from a clean checkout:"
+            echo "$ignored"
+            exit 1
+          fi
+
       - name: Fail if the generated client differs
         run: |
           if ! git diff --exit-code --stat -- src/Kapso/Generated; then
