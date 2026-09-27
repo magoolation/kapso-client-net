@@ -43,6 +43,11 @@ Console.WriteLine(new string('─', 64));
 
 // ── Platform: the numbers connected to this project ──────────────────────────
 // Also the source of the phone number ID every WhatsApp call needs.
+//
+// Pass one as an argument to test a specific number. With several connected,
+// picking whichever the API happens to list first makes the run depend on
+// ordering, and a sandbox number behaves quite differently from a live one.
+var requested = args.FirstOrDefault(a => !a.StartsWith('-'));
 string? phoneNumberId = null;
 
 await SectionAsync("Phone numbers (Platform)", async () =>
@@ -58,7 +63,10 @@ await SectionAsync("Phone numbers (Platform)", async () =>
 
     foreach (var number in data)
     {
-        phoneNumberId ??= number.PhoneNumberId;
+        if (requested is null || number.PhoneNumberId == requested)
+        {
+            phoneNumberId ??= number.PhoneNumberId;
+        }
 
         Console.WriteLine($"  id            {number.PhoneNumberId}");
         Console.WriteLine($"  display       {Or(number.DisplayPhoneNumber)}");
