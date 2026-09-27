@@ -25,7 +25,7 @@
        breaking anyone already compiled against it. -->
   <PropertyGroup>
     <EnablePackageValidation>true</EnablePackageValidation>
-    <PackageValidationBaselineVersion>0.1.0</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion>0.2.0</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup>

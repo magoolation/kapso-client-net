@@ -11,6 +11,16 @@ internal sealed class RecordingHandler : HttpMessageHandler
 
     public List<HttpRequestMessage> Requests { get; } = [];
 
+    /// <summary>
+    /// Request bodies as text, captured while the request is in flight.
+    /// </summary>
+    /// <remarks>
+    /// HttpClient disposes the request content once the call completes, so a test
+    /// that reads it afterwards gets ObjectDisposedException. Indices line up
+    /// with <see cref="Requests"/>.
+    /// </remarks>
+    public List<string> Bodies { get; } = [];
+
     public Uri? LastRequestUri => Requests.Count > 0 ? Requests[^1].RequestUri : null;
 
     /// <summary>Response used once every queued response is exhausted.</summary>
@@ -43,16 +53,19 @@ internal sealed class RecordingHandler : HttpMessageHandler
             Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json"),
         };
 
-    protected override Task<HttpResponseMessage> SendAsync(
+    protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
         Requests.Add(request);
+        Bodies.Add(request.Content is null
+            ? string.Empty
+            : await request.Content.ReadAsStringAsync(cancellationToken));
 
         var factory = _responses.Count > 0 ? _responses.Dequeue() : Fallback;
         var response = factory(request);
         response.RequestMessage = request;
 
-        return Task.FromResult(response);
+        return response;
     }
 }

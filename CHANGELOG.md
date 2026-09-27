@@ -6,6 +6,31 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-27
+
+Backward compatible with 0.2.0, verified by package validation against the
+published package.
+
+### Added
+
+- `UploadAsync` and `UploadFileAsync` for uploading WhatsApp media. The generated
+  call could not be used from outside this package at all: it takes a Kiota
+  `MultipartBody`, a `MultipartBody` needs the request adapter to serialize
+  itself, and Kiota declares `BaseRequestBuilder.RequestAdapter` as protected.
+  The helper also sets the required `messaging_product` part, whose absence is
+  what makes an otherwise correct upload fail.
+
+### Repository
+
+Not shipped in the package, but part of this release:
+
+- `Kapso.Samples.SendMedia` uploads and sends an image, an Opus voice note and a
+  PDF. All three were sent against a live number.
+- The webhook receiver repoints its own webhook at the current tunnel and reads
+  the secret from the API, so no copy of the secret can drift out of sync. Real
+  `whatsapp.message.sent` and `.delivered` deliveries were verified end to end.
+- `run-with-tunnel.ps1` puts the receiver behind a Cloudflare quick tunnel.
+
 ## [0.2.0] - 2026-09-27
 
 Backward compatible with 0.1.0, verified by package validation against the
@@ -48,6 +73,7 @@ Not shipped in the package, but part of this release:
 - Webhook signature verification and typed payloads for the documented events.
 - Native AOT and trimming support, verified by publishing a sample in CI.
 
-[Unreleased]: https://github.com/magoolation/kapso-client-net/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/magoolation/kapso-client-net/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/magoolation/kapso-client-net/releases/tag/v0.3.0
 [0.2.0]: https://github.com/magoolation/kapso-client-net/releases/tag/v0.2.0
 [0.1.0]: https://github.com/magoolation/kapso-client-net/releases/tag/v0.1.0
