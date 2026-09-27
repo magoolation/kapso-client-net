@@ -46,13 +46,20 @@ public sealed class KapsoClient : IDisposable
     /// Creates a client with the default endpoints and resilience settings.
     /// </summary>
     /// <param name="apiKey">Project API key, sent as <c>X-API-Key</c>.</param>
+    public KapsoClient(string apiKey)
+        : this(new KapsoClientOptions { ApiKey = apiKey }, loggerFactory: null)
+    {
+    }
+
+    /// <inheritdoc cref="KapsoClient(string)" />
+    /// <param name="apiKey">Project API key, sent as <c>X-API-Key</c>.</param>
     /// <param name="loggerFactory">
     /// Where to send diagnostics. Supply one and a failed response is logged with
     /// the body the server sent, which is otherwise lost: Kiota keeps only the
     /// status code unless the body matches an error schema in the OpenAPI
     /// description, and Kapso's errors frequently do not.
     /// </param>
-    public KapsoClient(string apiKey, ILoggerFactory? loggerFactory = null)
+    public KapsoClient(string apiKey, ILoggerFactory? loggerFactory)
         : this(new KapsoClientOptions { ApiKey = apiKey }, loggerFactory)
     {
     }
@@ -67,12 +74,18 @@ public sealed class KapsoClient : IDisposable
     /// the handler it builds recycles pooled connections so it does not go stale
     /// against DNS changes.
     /// </remarks>
+    public KapsoClient(KapsoClientOptions options)
+        : this(PrepareOwned(options, loggerFactory: null))
+    {
+    }
+
+    /// <inheritdoc cref="KapsoClient(KapsoClientOptions)" />
     /// <param name="options">Endpoints, credentials and retry behaviour.</param>
     /// <param name="loggerFactory">
-    /// Where to send diagnostics. See the other constructor for why it is worth
-    /// supplying.
+    /// Where to send diagnostics. See <see cref="KapsoClient(string, ILoggerFactory)"/>
+    /// for why it is worth supplying.
     /// </param>
-    public KapsoClient(KapsoClientOptions options, ILoggerFactory? loggerFactory = null)
+    public KapsoClient(KapsoClientOptions options, ILoggerFactory? loggerFactory)
         : this(PrepareOwned(options, loggerFactory))
     {
     }

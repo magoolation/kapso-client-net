@@ -19,10 +19,13 @@
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
   </PropertyGroup>
 
-  <!-- Catches breaking changes against the last released version. The baseline
-       is set on the first stable release. -->
+  <!-- Downloads the baseline from nuget.org and fails the build on an API break
+       against it. Without this, an added optional parameter looks harmless — it
+       is source compatible — while silently removing the old signature and
+       breaking anyone already compiled against it. -->
   <PropertyGroup>
     <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageValidationBaselineVersion>0.1.0</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup>
