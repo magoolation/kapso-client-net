@@ -12,3 +12,14 @@ ffmpeg -f lavfi -i "sine=frequency=440:duration=2:sample_rate=48000" \
 The audio matters more than it looks. WhatsApp accepts `audio/ogg` **only** when
 the codec is Opus, and only Opus renders as a voice note rather than as an
 attached file. A plain Ogg Vorbis file is rejected.
+
+The PDF is written by `make-pdf.py` rather than committed from an unknown source,
+so its bytes are auditable — it is a one-page document with no dependency on a
+PDF library:
+
+```bash
+python make-pdf.py
+```
+
+WhatsApp accepted it, which is the practical proof that the hand-written
+cross-reference table is correct.

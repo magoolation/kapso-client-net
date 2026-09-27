@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 using Microsoft.Kiota.Abstractions;
 
-// Uploads and sends an image and a voice note.
+// Uploads and sends an image, a voice note and a PDF document.
 //
 // Like the text sender, this one costs money and reaches a real device, so it
 // refuses to do anything without --send. Configuration comes from the shared
@@ -40,12 +40,14 @@ if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(phoneNumberId
 var assets = Path.Combine(AppContext.BaseDirectory, "assets");
 var imagePath = Path.Combine(assets, "sample-image.png");
 var voicePath = Path.Combine(assets, "sample-voice.ogg");
+var documentPath = Path.Combine(assets, "sample-document.pdf");
 
 Console.WriteLine("About to upload and send real WhatsApp media.");
 Console.WriteLine($"  from phone number id : {phoneNumberId}");
 Console.WriteLine($"  to                   : {Mask(recipient)}");
 Console.WriteLine($"  image                : {Path.GetFileName(imagePath)} ({new FileInfo(imagePath).Length:N0} bytes)");
 Console.WriteLine($"  voice note           : {Path.GetFileName(voicePath)} ({new FileInfo(voicePath).Length:N0} bytes)");
+Console.WriteLine($"  document             : {Path.GetFileName(documentPath)} ({new FileInfo(documentPath).Length:N0} bytes)");
 Console.WriteLine();
 
 if (!args.Contains("--send", StringComparer.Ordinal))
@@ -122,6 +124,34 @@ try
         cancellationToken: cancellation);
 
     Console.WriteLine($"  message id {voiceSent?.Messages?.FirstOrDefault()?.Id}");
+
+    // ── Document ─────────────────────────────────────────────────────────────
+    // Filename is what the recipient sees and what their device uses when they
+    // save it. Leave it out and WhatsApp shows the media ID, which is useless.
+    Console.WriteLine("\nUploading the document…");
+
+    var documentId = await media.UploadFileAsync(documentPath, "application/pdf", cancellation);
+    Console.WriteLine($"  media id   {documentId}");
+
+    var documentSent = await messages.PostAsync(
+        new MessagesRequestBuilder.MessagesPostRequestBody
+        {
+            WhatsappMessage = new WhatsappMessage
+            {
+                MessagingProduct = WhatsappMessage_messaging_product.Whatsapp,
+                To = recipient,
+                Type = MessageType.Document,
+                Document = new MediaMessage
+                {
+                    Id = documentId,
+                    Filename = "kapso-dotnet-sample.pdf",
+                    Caption = "Sample PDF from the Kapso .NET client.",
+                },
+            },
+        },
+        cancellationToken: cancellation);
+
+    Console.WriteLine($"  message id {documentSent?.Messages?.FirstOrDefault()?.Id}");
 }
 catch (ApiException ex)
 {
@@ -136,7 +166,7 @@ if (kapso.RateLimit is { Limit: not null } rateLimit)
     Console.WriteLine($"\nRate limit: {rateLimit.Remaining}/{rateLimit.Limit} remaining this minute");
 }
 
-Console.WriteLine("\nBoth sent. Media IDs stay valid for 30 days and can be reused.");
+Console.WriteLine("\nAll three sent. Media IDs stay valid for 30 days and can be reused.");
 return 0;
 
 static string Mask(string number) =>

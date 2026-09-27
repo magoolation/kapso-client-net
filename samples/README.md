@@ -9,7 +9,7 @@ secret-shaped is ever committed.
 | [Kapso.Samples.WebhookReceiver](Kapso.Samples.WebhookReceiver) | Signature verification and typed dispatch, end to end | no |
 | [Kapso.Samples.Quickstart](Kapso.Samples.Quickstart) | Auth, both base addresses, pagination, rate limits — read-only | yes |
 | [Kapso.Samples.SendMessage](Kapso.Samples.SendMessage) | Sending a real WhatsApp message | yes |
-| [Kapso.Samples.SendMedia](Kapso.Samples.SendMedia) | Uploading and sending an image and a voice note | yes |
+| [Kapso.Samples.SendMedia](Kapso.Samples.SendMedia) | Uploading and sending an image, a voice note and a PDF | yes |
 | [Kapso.Samples.Aot](Kapso.Samples.Aot) | The package works under Native AOT | no |
 
 ## Where secrets live
@@ -116,13 +116,15 @@ Uploads a file, then sends a message referencing the returned media ID.
 dotnet run --project samples/Kapso.Samples.SendMedia -- --send
 ```
 
-Two things this exists to demonstrate, because both are easy to get wrong:
+Three things this exists to demonstrate, because each is easy to get wrong:
 
 - **The upload needs `messaging_product`**, the same field whose absence makes a
   text send fail. `UploadAsync` sets it, so it cannot be forgotten.
 - **A voice note has to be Opus.** WhatsApp accepts `audio/ogg` only when the
   codec is Opus, and only then does it render as a voice note rather than as an
   attached file. Setting `Audio.Voice = true` on anything else does not help.
+- **A document needs a `Filename`.** It is what the recipient sees and what
+  their device saves it as. Leave it out and WhatsApp shows the media ID.
 
 The assets are committed, so ffmpeg is not needed to run it. See
 [assets/README.md](Kapso.Samples.SendMedia/assets/README.md) for how they were made.
