@@ -3,6 +3,9 @@ using Kapso.Generated.WhatsApp.PhoneNumbers.Item.Messages;
 using Kapso.Generated.WhatsApp.PhoneNumbers.Models;
 
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+
+using Microsoft.Kiota.Abstractions;
 
 // Sends one WhatsApp text message.
 //
@@ -68,20 +71,73 @@ if (!args.Contains("--send", StringComparer.Ordinal))
     return 0;
 }
 
-using var kapso = new KapsoClient(apiKey!);
+// With a logger factory the client reports the body of any failed response.
+// Without one a rejection arrives as a bare status code, because Kiota discards
+// a body that does not match an error schema in the OpenAPI description — and
+// Kapso's rejections often do not. "Active sandbox session required to send
+// messages" is exactly such a body.
+using var loggerFactory = LoggerFactory.Create(logging => logging
+    .AddSimpleConsole(console => console.SingleLine = true)
+    .SetMinimumLevel(LogLevel.Warning));
+
+using var kapso = new KapsoClient(apiKey!, loggerFactory);
 var cancellation = new CancellationTokenSource(TimeSpan.FromMinutes(1)).Token;
 
-var response = await kapso.WhatsApp.PhoneNumbers[phoneNumberId!].Messages.PostAsync(
-    new MessagesRequestBuilder.MessagesPostRequestBody
-    {
-        WhatsappMessage = new WhatsappMessage
+SendMessageResponse? response;
+
+try
+{
+    response = await kapso.WhatsApp.PhoneNumbers[phoneNumberId!].Messages.PostAsync(
+        new MessagesRequestBuilder.MessagesPostRequestBody
         {
-            To = recipient,
-            Type = MessageType.Text,
-            Text = new TextMessage { Body = text },
+            WhatsappMessage = new WhatsappMessage
+            {
+                // Required by the API, and easy to miss: Kiota does not enforce a
+                // required field on a request body, so leaving it out compiles and
+                // fails at runtime with "messaging_product must be whatsapp".
+                MessagingProduct = WhatsappMessage_messaging_product.Whatsapp,
+                To = recipient,
+                Type = MessageType.Text,
+                Text = new TextMessage { Body = text },
+            },
         },
-    },
-    cancellationToken: cancellation);
+        cancellationToken: cancellation);
+}
+catch (Error error)
+{
+    // Kiota maps Kapso's error body to this type, but generates
+    // `override string Message => base.Message`, so the exception message says
+    // only "Exception of type 'Error' was thrown". Everything useful — Meta's
+    // code, type and text — is on the model, and has to be read from there.
+    Console.Error.WriteLine("Rejected by Kapso or Meta.");
+    Console.Error.WriteLine($"  status      {error.ResponseStatusCode}");
+    Console.Error.WriteLine($"  code        {error.ErrorProp?.Code?.ToString() ?? "—"}");
+    Console.Error.WriteLine($"  subcode     {error.ErrorProp?.ErrorSubcode?.ToString() ?? "—"}");
+    Console.Error.WriteLine($"  type        {error.ErrorProp?.Type ?? "—"}");
+    Console.Error.WriteLine($"  message     {error.ErrorProp?.Message ?? "—"}");
+    Console.Error.WriteLine($"  fbtrace id  {error.ErrorProp?.FbtraceId ?? "—"}");
+
+    // Anything the description does not model lands here. Worth printing: a body
+    // that does not match the spec is exactly the case where the typed fields are
+    // all empty and there is otherwise nothing to go on.
+    if (error.AdditionalData is { Count: > 0 })
+    {
+        Console.Error.WriteLine("  fields not described by the OpenAPI document:");
+        foreach (var (key, value) in error.AdditionalData)
+        {
+            Console.Error.WriteLine($"    {key} = {value}");
+        }
+    }
+
+    return 1;
+}
+catch (ApiException ex)
+{
+    // The body does not match any error schema, so Kiota kept only the status.
+    // The logger above has already printed what the server actually said.
+    Console.Error.WriteLine($"Rejected with HTTP {ex.ResponseStatusCode}. See the logged response body above.");
+    return 1;
+}
 
 var sent = response?.Messages?.FirstOrDefault();
 

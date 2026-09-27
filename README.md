@@ -118,6 +118,27 @@ the raw JSON, so an endpoint keeps working when Kapso ships something new.
 Deliveries are at-least-once. Key your processing on
 `result.Delivery.IdempotencyKey`.
 
+## Seeing why a call failed
+
+Kiota builds typed exceptions from the error schemas in the OpenAPI description
+and discards a body that matches none of them. Kapso's errors frequently do not
+match, so without help a refused send arrives as a bare `403`.
+
+Give the client a logger and it reports what the server actually said:
+
+```csharp
+using var loggerFactory = LoggerFactory.Create(b => b.AddConsole());
+using var kapso = new KapsoClient(apiKey, loggerFactory);
+```
+
+```
+warn: Kapso returned 403 for POST .../1555/messages:
+      {"error":"Active sandbox session required to send messages"}
+```
+
+Under `services.AddKapso(...)` this is wired to the application's own logging
+automatically.
+
 ## Retries and rate limits
 
 Retries are not uniform across HTTP methods, because they cannot safely be:

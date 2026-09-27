@@ -9,6 +9,7 @@ using Kapso.Generated.WhatsApp.PhoneNumbers;
 using Kapso.Generated.Workflows;
 using Kapso.Http;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Microsoft.Kiota.Abstractions;
@@ -45,8 +46,14 @@ public sealed class KapsoClient : IDisposable
     /// Creates a client with the default endpoints and resilience settings.
     /// </summary>
     /// <param name="apiKey">Project API key, sent as <c>X-API-Key</c>.</param>
-    public KapsoClient(string apiKey)
-        : this(new KapsoClientOptions { ApiKey = apiKey })
+    /// <param name="loggerFactory">
+    /// Where to send diagnostics. Supply one and a failed response is logged with
+    /// the body the server sent, which is otherwise lost: Kiota keeps only the
+    /// status code unless the body matches an error schema in the OpenAPI
+    /// description, and Kapso's errors frequently do not.
+    /// </param>
+    public KapsoClient(string apiKey, ILoggerFactory? loggerFactory = null)
+        : this(new KapsoClientOptions { ApiKey = apiKey }, loggerFactory)
     {
     }
 
@@ -60,8 +67,13 @@ public sealed class KapsoClient : IDisposable
     /// the handler it builds recycles pooled connections so it does not go stale
     /// against DNS changes.
     /// </remarks>
-    public KapsoClient(KapsoClientOptions options)
-        : this(PrepareOwned(options))
+    /// <param name="options">Endpoints, credentials and retry behaviour.</param>
+    /// <param name="loggerFactory">
+    /// Where to send diagnostics. See the other constructor for why it is worth
+    /// supplying.
+    /// </param>
+    public KapsoClient(KapsoClientOptions options, ILoggerFactory? loggerFactory = null)
+        : this(PrepareOwned(options, loggerFactory))
     {
     }
 
@@ -217,14 +229,17 @@ public sealed class KapsoClient : IDisposable
         HttpClient HttpClient,
         KapsoRateLimitTracker Tracker);
 
-    private static OwnedSetup PrepareOwned(KapsoClientOptions options)
+    private static OwnedSetup PrepareOwned(KapsoClientOptions options, ILoggerFactory? loggerFactory)
     {
         Validate(options);
         var tracker = new KapsoRateLimitTracker();
-        return new OwnedSetup(options, CreateOwnedHttpClient(options, tracker), tracker);
+        return new OwnedSetup(options, CreateOwnedHttpClient(options, tracker, loggerFactory), tracker);
     }
 
-    private static HttpClient CreateOwnedHttpClient(KapsoClientOptions options, KapsoRateLimitTracker tracker)
+    private static HttpClient CreateOwnedHttpClient(
+        KapsoClientOptions options,
+        KapsoRateLimitTracker tracker,
+        ILoggerFactory? loggerFactory)
     {
         HttpMessageHandler handler = new SocketsHttpHandler
         {
@@ -233,6 +248,15 @@ public sealed class KapsoClient : IDisposable
         };
 
         handler = new KapsoRateLimitTrackingHandler(tracker, TimeProvider.System) { InnerHandler = handler };
+
+        // Innermost, so every attempt is reported rather than only the last.
+        if (loggerFactory is not null)
+        {
+            handler = new KapsoErrorLoggingHandler(loggerFactory.CreateLogger<KapsoErrorLoggingHandler>())
+            {
+                InnerHandler = handler,
+            };
+        }
 
         if (!options.Retry.Enabled)
         {

@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Runnable samples: a webhook receiver that verifies itself with no Kapso
+  account, a read-only tour of both APIs, and a message sender.
+- Failed responses are logged with the body the server sent. Kiota keeps only the
+  status code when a body matches no error schema in the OpenAPI description, and
+  Kapso's errors frequently do not, which left a refused call with nothing to act
+  on. Pass an `ILoggerFactory` to the constructor, or use `AddKapso` and get the
+  application's logging.
+- `eng/Test-NoSecrets.ps1` fails the build if anything secret-shaped is committed.
+
 ## [0.1.0] - 2026-09-27
 
 ### Added

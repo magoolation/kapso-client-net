@@ -73,6 +73,7 @@ public static class KapsoServiceCollectionExtensions
         services.TryAddSingleton<KapsoRateLimitTracker>();
         services.TryAddTransient<KapsoResilienceContextHandler>();
         services.TryAddTransient<KapsoRateLimitTrackingHandler>();
+        services.TryAddTransient<KapsoErrorLoggingHandler>();
 
         var builder = services.AddHttpClient<KapsoClient>(HttpClientName)
             .ConfigureHttpClient(static (provider, client) =>
@@ -100,6 +101,11 @@ public static class KapsoServiceCollectionExtensions
 
         // Innermost, so the recorded rate limit reflects the most recent attempt.
         builder.AddHttpMessageHandler<KapsoRateLimitTrackingHandler>();
+
+        // Last, so it sees every attempt. Without it a failed call surfaces as a
+        // status code with no explanation, because Kiota discards a body that
+        // does not match an error schema in the description.
+        builder.AddHttpMessageHandler<KapsoErrorLoggingHandler>();
 
         return builder;
     }
