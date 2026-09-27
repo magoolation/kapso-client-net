@@ -62,13 +62,19 @@ winget install Cloudflare.cloudflared
 pwsh samples/Kapso.Samples.WebhookReceiver/run-with-tunnel.ps1
 ```
 
-The script starts the tunnel, prints the URL to register, and runs the receiver
-until Ctrl+C. Paste that URL into the number's **Manage Webhooks** in Kapso, set
-the same secret, and subscribe to the events you want.
+The script starts the tunnel and the receiver repoints your existing webhook at
+it, reading the secret from the API. Create the webhook once in the dashboard
+and subscribe it to the events you want; after that a restart needs nothing,
+even though a quick tunnel gets a new hostname every time.
 
-A quick tunnel needs no Cloudflare account, and its URL changes every run — so
-the webhook has to be re-pointed after a restart. A named tunnel keeps a stable
-hostname if that becomes tiresome.
+That also removes the commonest way a receiver fails. Kapso generates the secret
+when the webhook is created, a copy typed into local configuration drifts from
+it, and every delivery is then rejected as forged — which looks exactly like an
+attack. With no second copy there is nothing to drift.
+
+Repointing is gated behind `--point-here`, which the script passes: a webhook URL
+decides where production events go, and it should never move because a dev tool
+ran.
 
 The one thing to copy from this sample: it reads the **raw request body** before
 anything parses it. Model binding hands back a re-serialized object whose bytes

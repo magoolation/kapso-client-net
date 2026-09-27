@@ -1,5 +1,7 @@
 using System.Text;
 
+using Kapso;
+using Kapso.Generated.Platform.Models;
 using Kapso.Webhooks;
 using Kapso.Webhooks.Models;
 
@@ -15,6 +17,7 @@ using Kapso.Webhooks.Models;
 // valid delivery is accepted and a forged one is rejected.
 
 var selfTest = args.Contains("--selftest", StringComparer.Ordinal);
+var pointHere = args.Contains("--point-here", StringComparer.Ordinal);
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddUserSecrets<Marker>(optional: true);
@@ -23,12 +26,29 @@ builder.Configuration.AddUserSecrets<Marker>(optional: true);
 var secret = builder.Configuration["Kapso:WebhookSecret"]
     ?? (selfTest ? "selftest-secret" : null);
 
+// Configuring the secret in two places is the most common way a receiver fails:
+// Kapso generates one when the webhook is created, and a copy typed here drifts
+// from it silently — every delivery is then rejected as forged, which looks
+// exactly like an attack. The API exposes the webhook's own secret, and the API
+// key already authenticates, so reading it is not a weaker position than
+// storing a second copy.
+if (string.IsNullOrWhiteSpace(secret) && !selfTest)
+{
+    secret = await ResolveSecretAsync(builder.Configuration, pointHere);
+}
+
 if (string.IsNullOrWhiteSpace(secret))
 {
     Console.Error.WriteLine("""
-        No webhook secret configured.
+        No webhook secret available.
 
-          cd samples/Kapso.Samples.WebhookReceiver
+        Either let the receiver read it from Kapso, which needs:
+
+          dotnet user-secrets set "Kapso:ApiKey"        "<your key>"
+          dotnet user-secrets set "Kapso:PhoneNumberId" "<the number's id>"
+
+        or set it explicitly, which then has to match the dashboard exactly:
+
           dotnet user-secrets set "Kapso:WebhookSecret" "<the webhook's secret>"
 
         Or run `dotnet run -- --selftest` to exercise the receiver without one.
@@ -103,6 +123,99 @@ return await RunSelfTestAsync(app, secret);
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
+/// Finds this number's webhook, optionally repoints it here, and returns its secret.
+/// </summary>
+/// <remarks>
+/// Keeping a copy of the secret in local configuration is the most common way a
+/// receiver fails: Kapso generates one when the webhook is created, the copy
+/// drifts, and every delivery is then rejected as forged — which looks exactly
+/// like an attack. Reading it from the API removes the second copy, and the API
+/// key already authenticates, so nothing is weakened.
+///
+/// Repointing is gated behind <c>--point-here</c> because a webhook URL decides
+/// where production events go. It should never move because a dev tool ran.
+/// </remarks>
+static async Task<string?> ResolveSecretAsync(IConfiguration configuration, bool pointHere)
+{
+    var apiKey = configuration["Kapso:ApiKey"] ?? Environment.GetEnvironmentVariable("KAPSO_API_KEY");
+    var phoneNumberId = configuration["Kapso:PhoneNumberId"];
+
+    if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(phoneNumberId))
+    {
+        return null;
+    }
+
+    var here = configuration["Kapso:PublicUrl"] is { Length: > 0 } baseUrl
+        ? $"{baseUrl.TrimEnd('/')}/webhooks/kapso"
+        : null;
+
+    using var kapso = new KapsoClient(apiKey);
+    var webhooks = kapso.Platform.Whatsapp.Phone_numbers[phoneNumberId].Webhooks;
+
+    var response = await webhooks.GetAsync();
+    var active = (response?.Data ?? []).Where(w => w.Active == true).ToList();
+
+    if (active.Count == 0)
+    {
+        Console.Error.WriteLine($"No active webhook is registered for {phoneNumberId}.");
+        return null;
+    }
+
+    var target = here is not null
+        ? active.FirstOrDefault(w => string.Equals(w.Url, here, StringComparison.OrdinalIgnoreCase))
+        : null;
+
+    if (target is null)
+    {
+        if (active.Count > 1)
+        {
+            Console.Error.WriteLine($"{active.Count} active webhooks are registered for {phoneNumberId}:");
+            foreach (var webhook in active)
+            {
+                Console.Error.WriteLine($"  {webhook.Url}");
+            }
+
+            Console.Error.WriteLine("Delete the ones you are not using, or set Kapso:WebhookSecret explicitly.");
+            return null;
+        }
+
+        target = active[0];
+    }
+
+    // A quick tunnel gets a new hostname every run, so the registered URL is
+    // stale as soon as the tunnel restarts.
+    if (pointHere && here is not null && !string.Equals(target.Url, here, StringComparison.OrdinalIgnoreCase))
+    {
+        if (target.Id is not { } id)
+        {
+            Console.Error.WriteLine("The webhook has no id, so it cannot be repointed.");
+            return null;
+        }
+
+        Console.WriteLine($"Repointing the webhook from {target.Url}");
+        Console.WriteLine($"                         to {here}");
+
+        var updated = await webhooks[id].PatchAsync(new WhatsappWebhookUpdateRequest
+        {
+            WhatsappWebhook = new WhatsappWebhookUpdateRequest_whatsapp_webhook { Url = here },
+        });
+
+        target = updated?.Data ?? target;
+    }
+
+    if (string.IsNullOrEmpty(target.SecretKey))
+    {
+        Console.Error.WriteLine($"The webhook at {target.Url} has no secret, so deliveries cannot be verified.");
+        return null;
+    }
+
+    // Identified by URL; the secret itself is never printed.
+    Console.WriteLine($"Verifying with the secret Kapso holds for {target.Url}");
+
+    return target.SecretKey;
+}
+
+/// <summary>
 /// Turns each payload into a line of output. Pattern matching on the payload type
 /// is how a real receiver branches: the event name selects the shape.
 /// </summary>
@@ -111,12 +224,21 @@ static void Describe(KapsoWebhookPayload payload, ILogger log)
     switch (payload)
     {
         case KapsoMessagePayload message:
+            // An outbound message has no `from` and an inbound one has no `to`,
+            // so the interesting party depends on the direction. Reading "from
+            // unknown" on every delivery receipt is how this was noticed.
+            var outbound = message.Message?.Kapso?.Direction == "outbound";
+            var party = outbound
+                ? message.Message?.To
+                : message.Message?.From ?? message.Message?.FromBusinessScopedUserId;
+
             log.LogInformation(
-                "  message {Id} {Direction} from {From}: {Content}",
+                "  message {Id} {Direction} {Preposition} {Party}: {Content}",
                 message.Message?.Id,
                 message.Message?.Kapso?.Direction,
-                // WhatsApp can identify a user without a phone number.
-                message.Message?.From ?? message.Message?.FromBusinessScopedUserId ?? "unknown",
+                outbound ? "to" : "from",
+                // WhatsApp can identify a user without a phone number at all.
+                party ?? message.Conversation?.PhoneNumber ?? "an unidentified party",
                 message.Message?.Kapso?.Content);
             break;
 

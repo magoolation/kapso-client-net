@@ -81,15 +81,15 @@ try {
 
     Write-Host ''
     Write-Host ('-' * 72)
-    Write-Host '  Register this URL in Kapso' -ForegroundColor Green
+    Write-Host "  Tunnel: $webhookUrl" -ForegroundColor Green
     Write-Host ''
-    Write-Host "    $webhookUrl" -ForegroundColor Yellow
+    Write-Host '  The receiver repoints your existing webhook at this URL and reads'
+    Write-Host '  its secret from the API, so there is nothing to copy by hand and'
+    Write-Host '  nothing to redo when the tunnel restarts with a new hostname.'
     Write-Host ''
-    Write-Host '  Dashboard: the connected number -> Manage Webhooks -> add the URL,'
-    Write-Host '  set the same secret you configured here, and subscribe to'
-    Write-Host '  whatsapp.message.received, .sent, .delivered and .read.'
-    Write-Host ''
-    Write-Host '  The URL changes every run, so it has to be re-pointed after a restart.'
+    Write-Host '  Needs Kapso:ApiKey and Kapso:PhoneNumberId in user secrets. The'
+    Write-Host '  webhook itself must already exist: create it once in the dashboard'
+    Write-Host '  and subscribe it to the events you want.'
     Write-Host ('-' * 72)
     Write-Host ''
 
@@ -97,7 +97,11 @@ try {
     Write-Host ''
 
     $env:ASPNETCORE_URLS = "http://127.0.0.1:$Port"
-    dotnet run --project $projectDir -c Release
+
+    # Lets the receiver recognise its own webhook and move it here.
+    $env:Kapso__PublicUrl = $publicUrl
+
+    dotnet run --project $projectDir -c Release -- --point-here
 }
 finally {
     if ($tunnel -and -not $tunnel.HasExited) {
