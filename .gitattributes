@@ -15,6 +15,20 @@
 *.ps1     text eol=lf
 *.sh      text eol=lf
 
+# Anything whose bytes must survive a checkout unchanged. Git's own heuristic is
+# not enough: a PDF is mostly ASCII, so it was classified as text, and a Windows
+# checkout would have rewritten its line endings — shifting every byte offset in
+# the cross-reference table and producing a file no reader accepts.
 *.png binary
 *.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.ogg binary
+*.mp3 binary
+*.mp4 binary
+*.wav binary
+*.zip binary
 *.snk binary
+*.pfx binary
