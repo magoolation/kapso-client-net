@@ -84,6 +84,10 @@ jobs:
   samples:
     name: Samples
     runs-on: ubuntu-latest
+    # Declared at job level so the step conditions below can see it. A step's own
+    # env block is not in scope when its `if` is evaluated.
+    env:
+      KAPSO_API_KEY: ${{ secrets.KAPSO_API_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -91,7 +95,9 @@ jobs:
         with:
           global-json-file: global.json
 
-      - run: dotnet build samples -c Release
+      # Not `dotnet build samples`: that directory holds four projects and no
+      # solution, so MSBuild has nothing to open.
+      - run: dotnet build Kapso.slnx -c Release
 
       # Proves the webhook path end to end with no Kapso account: the sample signs
       # a delivery, posts it to itself, and checks that a valid one is accepted and
@@ -103,8 +109,6 @@ jobs:
       # must not fail for it. Read-only: it creates and sends nothing.
       - name: Read-only tour against the live API
         if: ${{ env.KAPSO_API_KEY != '' }}
-        env:
-          KAPSO_API_KEY: ${{ secrets.KAPSO_API_KEY }}
         run: dotnet run --project samples/Kapso.Samples.Quickstart -c Release --no-build
 
   secrets:
