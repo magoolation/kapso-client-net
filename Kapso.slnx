@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/eng/">
+    <Project Path="eng/Kapso.SpecTool/Kapso.SpecTool.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/Kapso.Samples.Aot/Kapso.Samples.Aot.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Kapso/Kapso.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Kapso.Tests/Kapso.Tests.csproj" />
+  </Folder>
+</Solution>

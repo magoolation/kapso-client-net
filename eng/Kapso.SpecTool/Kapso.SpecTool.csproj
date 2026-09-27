@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Build-time utility: splits and validates the vendored OpenAPI documents.
+       Never shipped; see eng/README.md for why it exists. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Kapso.SpecTool</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- Tooling churn should never fail the repo build. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="YamlDotNet" />
+  </ItemGroup>
+
+</Project>

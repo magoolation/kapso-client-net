@@ -1,0 +1,20 @@
+# Normalize line endings in the repository. Without this, the CI check that
+# regeneration reproduces what is committed would fail whenever the generating
+# machine's line endings differ from the committing machine's.
+* text=auto
+
+*.cs      text diff=csharp
+*.csproj  text
+*.props   text
+*.targets text
+*.slnx    text
+*.json    text
+*.yaml    text
+*.yml     text
+*.md      text
+*.ps1     text eol=lf
+*.sh      text eol=lf
+
+*.png binary
+*.jpg binary
+*.snk binary

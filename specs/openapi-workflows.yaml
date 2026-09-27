@@ -1,0 +1,4406 @@
+openapi: 3.1.0
+info:
+  title: Kapso Platform API – Advanced Resources
+  version: 0.1.0
+  description: |
+    Build WhatsApp automation workflows and serverless functions. Create multi-step conversation flows, inspect executions, and deploy custom logic.
+servers:
+  - url: https://api.kapso.ai/platform/v1
+    description: Production
+security:
+  - ApiKeyAuth: []
+tags:
+  - name: Workflows
+    description: Create and manage conversation workflows and executions
+  - name: Workflow Triggers
+    description: Configure workflow triggers to automate execution
+  - name: Functions
+    description: Manage serverless functions, deployments, and secrets
+  - name: WhatsApp Conversations
+    description: Query WhatsApp conversation data and related resources
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+    PaginationMeta:
+      type: object
+      required:
+        - page
+        - per_page
+        - total_pages
+        - total_count
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          description: Current page number
+        per_page:
+          type: integer
+          minimum: 1
+          description: Items per page
+        total_pages:
+          type: integer
+          minimum: 0
+          description: Total number of pages
+        total_count:
+          type: integer
+          minimum: 0
+          description: Total number of items across all pages
+    PaginationCursor:
+      type: object
+      properties:
+        before:
+          type: string
+          description: Cursor for previous page (Base64 encoded)
+        after:
+          type: string
+          description: Cursor for next page (Base64 encoded)
+    Paging:
+      type: object
+      properties:
+        cursors:
+          $ref: "#/components/schemas/PaginationCursor"
+        next:
+          type:
+            - string
+            - "null"
+          description: Cursor for next page
+        previous:
+          type:
+            - string
+            - "null"
+          description: Cursor for previous page
+    Workflow:
+      type: object
+      required:
+        - id
+        - name
+        - slug
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique workflow identifier
+        name:
+          type: string
+          description: Workflow name (unique per project)
+        slug:
+          type: string
+          description: |
+            URL-safe workflow identifier (lowercase alphanumeric with hyphens). Stable across renames — useful as an external sync key. Auto-generated from `name` on create if not provided. Unique within the project.
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          example: inbound-support
+        description:
+          type:
+            - string
+            - "null"
+          description: Optional workflow description
+        status:
+          type: string
+          enum:
+            - draft
+            - active
+            - archived
+          description: |
+            Workflow lifecycle status:
+            - `draft`: Under development, not executable
+            - `active`: Published and executable
+            - `archived`: Inactive, no longer in use
+        lock_version:
+          type:
+            - integer
+            - "null"
+          description: |
+            Optimistic locking version. Increment on each update to prevent concurrent modification conflicts. Include this value when updating to ensure you're working with the latest version.
+        message_debounce_seconds:
+          type:
+            - integer
+            - "null"
+          description: |
+            Debounce window for incoming messages in seconds (default: 1). When a user sends multiple messages rapidly, the workflow waits this duration before processing to batch messages together. Prevents workflow from reacting to every keystroke.
+        agent_default_tools_version:
+          type:
+            - integer
+            - "null"
+          description: Version used to decide which built-in agent tools are required by default for this workflow.
+        inbound_message_read_mode:
+          type: string
+          enum:
+            - disabled
+            - read_only
+            - read_with_typing
+          description: |
+            Controls how inbound WhatsApp messages are marked as read before the workflow responds (default: read_with_typing).
+            - `disabled`: Do nothing — messages are not marked as read
+            - `read_only`: Mark messages as read without showing a typing indicator
+            - `read_with_typing`: Mark as read and show a typing indicator before responding
+        created_at:
+          type: string
+          format: date-time
+          description: Workflow creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last modification timestamp
+        project_id:
+          type: string
+          format: uuid
+          description: Project this workflow belongs to
+        execution_count:
+          type: integer
+          minimum: 0
+          description: Total number of times this workflow has been executed
+        last_executed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Timestamp of most recent execution, null if never executed
+    WorkflowSummary:
+      type: object
+      required:
+        - id
+        - name
+        - slug
+        - status
+        - lock_version
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Workflow identifier
+        name:
+          type: string
+          description: Workflow name
+        slug:
+          type: string
+          description: URL-safe workflow identifier. Stable across renames — useful as an external sync key.
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          example: inbound-support
+        status:
+          type: string
+          enum:
+            - draft
+            - active
+            - archived
+          description: Workflow lifecycle status (draft, active, or archived)
+        lock_version:
+          type:
+            - integer
+            - "null"
+          description: Optimistic locking version used for guarded updates.
+        updated_at:
+          type: string
+          format: date-time
+          description: Last modification timestamp.
+      description: Minimal workflow representation for list endpoints
+    WorkflowMinimal:
+      type: object
+      required:
+        - id
+        - name
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Workflow identifier
+        name:
+          type: string
+          description: Workflow name
+        status:
+          type: string
+          description: Workflow status
+      description: Compact workflow reference used in execution objects
+    WorkflowWithDefinition:
+      allOf:
+        - $ref: "#/components/schemas/Workflow"
+        - type: object
+          required:
+            - definition
+          properties:
+            definition:
+              $ref: "#/components/schemas/WorkflowDefinition"
+      description: |
+        Expanded workflow payload returned by `GET /workflows/{workflow_id}/definition`.
+        This is the editor-oriented response: it contains the workflow metadata plus the full canvas graph.
+    WorkflowDefinition:
+      type: object
+      required:
+        - nodes
+        - edges
+      properties:
+        nodes:
+          type: array
+          description: |
+            Canvas nodes derived from `flow_steps`.
+            `id` is the step identifier used inside the workflow definition, not the database primary key.
+          items:
+            $ref: "#/components/schemas/WorkflowDefinitionNode"
+        edges:
+          type: array
+          description: Canvas edges derived from `flow_edges`.
+          items:
+            $ref: "#/components/schemas/WorkflowDefinitionEdge"
+      description: Full workflow graph definition used by the canvas editor.
+    WorkflowDefinitionInput:
+      type: object
+      properties:
+        nodes:
+          type: array
+          description: |
+            Desired node set for the workflow. When `nodes` is present on create or update, it is treated as the complete node set: nodes omitted from the array are removed. Omit `nodes` to leave existing nodes unchanged on update.
+          items:
+            $ref: "#/components/schemas/WorkflowDefinitionInputNode"
+        edges:
+          type: array
+          description: |
+            Desired edge set for the workflow. When `edges` is present on create or update, it is treated as the complete edge set: edges omitted from the array are removed. Omit `edges` to leave existing edges unchanged on update.
+          items:
+            $ref: "#/components/schemas/WorkflowDefinitionInputEdge"
+      additionalProperties: false
+      description: |
+        Workflow graph write payload. Field names are snake_case. The expanded definition response includes persisted IDs such as edge IDs and condition IDs; those IDs are optional in write payloads.
+    WorkflowDefinitionInputNode:
+      type: object
+      required:
+        - id
+        - position
+        - data
+      properties:
+        id:
+          type: string
+          description: Stable step identifier used by edges. Use a readable identifier such as `send_intro`.
+          pattern: ^[A-Za-z][A-Za-z0-9_-]*$
+          example: send_intro
+        type:
+          type: string
+          description: Canvas renderer type. Use `flow-node`.
+          example: flow-node
+        position:
+          $ref: "#/components/schemas/WorkflowDefinitionNodePosition"
+        data:
+          $ref: "#/components/schemas/WorkflowDefinitionInputNodeData"
+      additionalProperties: false
+      description: Node write payload.
+    WorkflowDefinitionInputNodeData:
+      type: object
+      required:
+        - node_type
+        - config
+      properties:
+        node_type:
+          type: string
+          enum:
+            - start
+            - send_text
+            - send_template
+            - send_interactive
+            - wait_for_response
+            - decide
+            - function
+            - webhook
+            - agent
+            - call
+            - handoff
+            - set_variable
+            - emit_event
+          description: Canonical backend node type.
+        config:
+          anyOf:
+            - $ref: "#/components/schemas/WorkflowNodeStartConfig"
+            - $ref: "#/components/schemas/WorkflowNodeSendTextConfig"
+            - $ref: "#/components/schemas/WorkflowNodeSendTemplateConfig"
+            - $ref: "#/components/schemas/WorkflowNodeSendInteractiveConfig"
+            - $ref: "#/components/schemas/WorkflowNodeWaitForResponseConfig"
+            - $ref: "#/components/schemas/WorkflowNodeDecideConfig"
+            - $ref: "#/components/schemas/WorkflowNodeFunctionConfig"
+            - $ref: "#/components/schemas/WorkflowNodeWebhookConfig"
+            - $ref: "#/components/schemas/WorkflowNodeAgentConfig"
+            - $ref: "#/components/schemas/WorkflowNodeCallConfig"
+            - $ref: "#/components/schemas/WorkflowNodeHandoffConfig"
+            - $ref: "#/components/schemas/WorkflowNodeSetVariableConfig"
+            - $ref: "#/components/schemas/WorkflowNodeEmitEventConfig"
+          description: Node configuration. Shape depends on `node_type`.
+        display_name:
+          type: string
+          description: Optional human-friendly label shown in the visual editor.
+      additionalProperties: false
+      description: Node data write payload.
+    WorkflowDefinitionInputEdge:
+      type: object
+      required:
+        - source
+        - target
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Optional existing edge ID. Usually omitted for new edges.
+        source:
+          type: string
+          description: Source node identifier.
+          example: start
+        target:
+          type: string
+          description: Target node identifier.
+          example: send_intro
+        label:
+          type: string
+          description: Transition label. Use `next` for non-decision nodes. For decide nodes, this must match a condition label.
+          default: next
+          example: next
+        type:
+          type: string
+          description: Optional canvas edge renderer type. The API returns `default`.
+          example: default
+        flow_condition_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Optional persisted condition ID for decide-step edges. If omitted, the API resolves decide edges by `label`.
+      additionalProperties: false
+      description: Edge write payload.
+    WorkflowDefinitionNode:
+      type: object
+      required:
+        - id
+        - type
+        - position
+        - data
+      properties:
+        id:
+          type: string
+          description: |
+            Stable step identifier within the workflow graph.
+            This matches `flow_steps.identifier` and is what edges reference via `source` and `target`.
+          example: send_intro
+        type:
+          type: string
+          description: Canvas renderer type. The API currently returns `flow-node`.
+          example: flow-node
+        position:
+          $ref: "#/components/schemas/WorkflowDefinitionNodePosition"
+        data:
+          $ref: "#/components/schemas/WorkflowDefinitionNodeData"
+      description: A node in the workflow canvas.
+    WorkflowDefinitionNodePosition:
+      type: object
+      required:
+        - x
+        - y
+      properties:
+        x:
+          type: number
+          description: Horizontal canvas position.
+          example: 360
+        y:
+          type: number
+          description: Vertical canvas position.
+          example: 120
+      additionalProperties: false
+      description: Canvas position of the node.
+    WorkflowDefinitionNodeData:
+      type: object
+      required:
+        - node_type
+        - config
+        - display_name
+      properties:
+        node_type:
+          type: string
+          description: |
+            Persisted workflow node type.
+
+            Common values returned by the Rails serializer:
+            - `start`
+            - action node types from executable actions such as `send_text`, `send_template`, `send_interactive`, `webhook`, `set_variable`, `handoff`
+            - `wait_for_response`
+            - `decide`
+            - `agent`
+            - `call`
+          example: wait_for_response
+        config:
+          description: |
+            Node configuration payload. Shape depends on `node_type`.
+
+            Built-in shapes returned by the definition endpoint:
+            - `start`: empty object
+            - `wait_for_response`: timeout and variable capture settings
+            - `decide`: decision strategy, branches, and model/function settings
+            - `agent`: model settings plus nested tools, webhooks, knowledge bases, and MCP servers
+            - `call`: referenced workflow ID/name and error variable mapping
+
+            Action nodes use the underlying action model's `to_config` output, so keys vary by action type.
+          anyOf:
+            - $ref: "#/components/schemas/WorkflowNodeStartConfig"
+            - $ref: "#/components/schemas/WorkflowNodeSendTextConfig"
+            - $ref: "#/components/schemas/WorkflowNodeSendTemplateConfig"
+            - $ref: "#/components/schemas/WorkflowNodeSendInteractiveConfig"
+            - $ref: "#/components/schemas/WorkflowNodeWaitForResponseConfig"
+            - $ref: "#/components/schemas/WorkflowNodeDecideConfig"
+            - $ref: "#/components/schemas/WorkflowNodeFunctionConfig"
+            - $ref: "#/components/schemas/WorkflowNodeWebhookConfig"
+            - $ref: "#/components/schemas/WorkflowNodeAgentConfig"
+            - $ref: "#/components/schemas/WorkflowNodeCallConfig"
+            - $ref: "#/components/schemas/WorkflowNodeHandoffConfig"
+            - $ref: "#/components/schemas/WorkflowNodeSetVariableConfig"
+            - $ref: "#/components/schemas/WorkflowNodeEmitEventConfig"
+            - type: object
+              additionalProperties: true
+        display_name:
+          type: string
+          description: Human-friendly label shown in the visual editor.
+          example: Wait for response
+      additionalProperties: false
+      description: Node payload rendered under `definition.nodes[].data`.
+    WorkflowDefinitionEdge:
+      type: object
+      required:
+        - id
+        - source
+        - target
+        - type
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Edge identifier (`flow_edges.id`).
+        source:
+          type: string
+          description: Source node identifier (`flow_steps.identifier`).
+          example: start
+        target:
+          type: string
+          description: Target node identifier (`flow_steps.identifier`).
+          example: send_intro
+        label:
+          type:
+            - string
+            - "null"
+          description: Transition label, usually `next` or a decision branch label.
+          example: next
+        type:
+          type: string
+          description: Canvas edge renderer type. The API currently returns `default`.
+          example: default
+        flow_condition_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Condition ID attached to decide-step edges. Null for non-decision edges.
+      additionalProperties: false
+      description: A directed transition between two workflow nodes.
+    WorkflowNodeStartConfig:
+      type: object
+      additionalProperties: false
+      description: Empty config for the `start` node.
+    WorkflowNodeSendTextConfig:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          oneOf:
+            - type: string
+            - type: object
+              additionalProperties: true
+          description: Text message body. Supports workflow variable interpolation such as `{{vars.customer_name}}`.
+          example: Hi {{vars.customer_name}}, how can we help?
+        phone_number_id:
+          type:
+            - string
+            - "null"
+          description: Preferred WhatsApp Business phone number ID to send from. If omitted, Kapso uses the conversation's phone number.
+        whatsapp_config_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Legacy internal WhatsApp config ID. Prefer `phone_number_id` for new integrations.
+        to_phone_number:
+          type:
+            - string
+            - "null"
+          description: Override destination phone number. Mainly used by observer-mode workflows that are not attached to an inbound conversation.
+        delay_seconds:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          description: Delay before sending the message.
+        provider_model_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: AI model ID used when resolving AI fields.
+        provider_model_name:
+          type:
+            - string
+            - "null"
+          description: AI model name used when resolving AI fields.
+        ai_field_config:
+          type: object
+          additionalProperties: true
+          description: AI field-resolution settings.
+      additionalProperties: false
+      description: Config for `send_text` nodes.
+    WorkflowNodeSendTemplateConfig:
+      type: object
+      required:
+        - template_id
+      properties:
+        template_id:
+          type: string
+          format: uuid
+          description: WhatsApp template ID.
+        template_name:
+          type:
+            - string
+            - "null"
+          description: Template name returned by definition responses.
+        parameters:
+          description: Template parameters. Supports Meta components format, `template_params`, arrays, and objects.
+        phone_number_id:
+          type:
+            - string
+            - "null"
+          description: Preferred WhatsApp Business phone number ID to send from. If omitted, Kapso uses the conversation's phone number.
+        whatsapp_config_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Legacy internal WhatsApp config ID. Prefer `phone_number_id` for new integrations.
+        to_phone_number:
+          type:
+            - string
+            - "null"
+          description: Override destination phone number.
+        provider_model_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        provider_model_name:
+          type:
+            - string
+            - "null"
+        ai_field_config:
+          type: object
+          additionalProperties: true
+      additionalProperties: false
+      description: Config for `send_template` nodes.
+    WorkflowNodeInteractiveButton:
+      type: object
+      required:
+        - id
+        - title
+      properties:
+        id:
+          type: string
+          description: Stable button payload ID.
+        title:
+          type: string
+          maxLength: 20
+          description: Button label shown to the user.
+      additionalProperties: false
+    WorkflowNodeInteractiveListRow:
+      type: object
+      required:
+        - id
+        - title
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+          maxLength: 24
+        description:
+          type: string
+          maxLength: 72
+      additionalProperties: false
+    WorkflowNodeInteractiveListSection:
+      type: object
+      required:
+        - rows
+      properties:
+        title:
+          type: string
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowNodeInteractiveListRow"
+      additionalProperties: false
+    WorkflowNodeSendInteractiveConfig:
+      type: object
+      required:
+        - interactive_type
+        - body_text
+      properties:
+        interactive_type:
+          type: string
+          enum:
+            - button
+            - list
+            - cta_url
+            - flow
+            - product
+            - product_list
+            - catalog_message
+            - location_request_message
+          description: WhatsApp interactive message type.
+        body_text:
+          oneOf:
+            - type: string
+              maxLength: 1024
+            - type: object
+              additionalProperties: true
+          description: Main message body.
+        footer_text:
+          type:
+            - string
+            - "null"
+        header_type:
+          type:
+            - string
+            - "null"
+          enum:
+            - none
+            - text
+            - image
+            - video
+            - document
+            - null
+        header_text:
+          type:
+            - string
+            - "null"
+        header_media_url:
+          type:
+            - string
+            - "null"
+        buttons:
+          type: array
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/WorkflowNodeInteractiveButton"
+        list_button_text:
+          type:
+            - string
+            - "null"
+        list_sections:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/WorkflowNodeInteractiveListSection"
+        cta_display_text:
+          type:
+            - string
+            - "null"
+        cta_url:
+          type:
+            - string
+            - "null"
+        flow_id:
+          type:
+            - string
+            - "null"
+        flow_cta:
+          type:
+            - string
+            - "null"
+        flow_token:
+          type:
+            - string
+            - "null"
+        flow_action:
+          type:
+            - string
+            - "null"
+          enum:
+            - navigate
+            - data_exchange
+            - null
+        flow_action_payload:
+          type:
+            - object
+            - "null"
+          additionalProperties: true
+        header_config:
+          type:
+            - object
+            - "null"
+          additionalProperties: true
+          description: Legacy expanded header config returned by definition responses.
+        action_config:
+          type:
+            - object
+            - "null"
+          additionalProperties: true
+          description: Legacy expanded action config returned by definition responses.
+        phone_number_id:
+          type:
+            - string
+            - "null"
+          description: Preferred WhatsApp Business phone number ID to send from. If omitted, Kapso uses the conversation's phone number.
+        whatsapp_config_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Legacy internal WhatsApp config ID. Prefer `phone_number_id` for new integrations.
+        to_phone_number:
+          type:
+            - string
+            - "null"
+          description: Override destination phone number.
+        provider_model_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        provider_model_name:
+          type:
+            - string
+            - "null"
+        ai_field_config:
+          type: object
+          additionalProperties: true
+      additionalProperties: false
+      description: Config for `send_interactive` nodes.
+    WorkflowNodeWaitForResponseConfig:
+      type: object
+      properties:
+        has_timeout:
+          type: boolean
+          description: Whether the wait step automatically times out.
+        timeout_seconds:
+          type:
+            - integer
+            - "null"
+          description: Timeout duration in seconds when `has_timeout` is true.
+        save_response_to:
+          type:
+            - string
+            - "null"
+          description: Variable name where the incoming response should be stored.
+      additionalProperties: false
+      description: Config returned for `wait_for_response` nodes.
+    WorkflowNodeDecideCondition:
+      type: object
+      required:
+        - id
+        - label
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Condition identifier.
+        label:
+          type: string
+          description: Edge label emitted by this condition.
+          example: qualified
+        description:
+          type:
+            - string
+            - "null"
+          description: Human-readable condition description.
+      additionalProperties: false
+      description: A branch option inside a decide step.
+    WorkflowNodeDecideConfig:
+      type: object
+      required:
+        - decision_type
+        - conditions
+        - llm_configuration
+      properties:
+        decision_type:
+          type: string
+          enum:
+            - ai
+            - function
+          description: Whether branching is evaluated by an AI model or a Kapso function.
+        conditions:
+          type: array
+          description: Ordered branch definitions for the decide step.
+          items:
+            $ref: "#/components/schemas/WorkflowNodeDecideCondition"
+        llm_configuration:
+          type: object
+          description: Additional LLM configuration stored on the decide step.
+          additionalProperties: true
+        function_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Referenced function ID when `decision_type=function`.
+        function_name:
+          type:
+            - string
+            - "null"
+          description: Referenced function name when `decision_type=function`.
+        provider_model_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Referenced model ID when `decision_type=ai`.
+        provider_model_name:
+          type:
+            - string
+            - "null"
+          description: Referenced model name when `decision_type=ai`.
+        llm_temperature:
+          type:
+            - number
+            - "null"
+          description: Sampling temperature for AI decisions.
+        llm_max_tokens:
+          type:
+            - integer
+            - "null"
+          description: Max output tokens for AI decisions.
+      additionalProperties: false
+      description: Config returned for `decide` nodes.
+    WorkflowNodeFunctionConfig:
+      type: object
+      required:
+        - function_id
+      properties:
+        function_id:
+          type: string
+          format: uuid
+          description: Kapso Function ID to execute.
+        function_name:
+          type:
+            - string
+            - "null"
+          description: Function name returned by definition responses.
+        save_response_to:
+          type:
+            - string
+            - "null"
+          description: Variable name where the function response should be stored.
+      additionalProperties: false
+      description: Config for `function` nodes.
+    WorkflowNodeWebhookConfig:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          description: External URL to call.
+        method:
+          type: string
+          enum:
+            - GET
+            - POST
+            - PUT
+            - PATCH
+            - DELETE
+          default: POST
+        headers:
+          oneOf:
+            - type: object
+              additionalProperties:
+                type: string
+            - type: string
+          description: HTTP headers. Object form is preferred; definition responses may contain JSON strings for legacy webhook actions.
+        body_template:
+          description: Request body template. Object form is preferred; definition responses may contain JSON strings for legacy webhook actions.
+        provider_model_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        provider_model_name:
+          type:
+            - string
+            - "null"
+        ai_field_config:
+          type: object
+          additionalProperties: true
+        save_response_to:
+          type:
+            - string
+            - "null"
+          description: Variable name where the webhook response should be stored.
+      additionalProperties: false
+      description: Config for `webhook` nodes.
+    WorkflowNodeAgentFunctionTool:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        function_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        function_name:
+          type:
+            - string
+            - "null"
+        input_schema:
+          type: object
+          description: JSON Schema-like input contract exposed to the agent.
+          additionalProperties: true
+      additionalProperties: false
+      description: Function tool attached to an agent node.
+    WorkflowNodeAgentWebhook:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        url:
+          type:
+            - string
+            - "null"
+          description: URL the agent can call.
+        http_method:
+          type:
+            - string
+            - "null"
+          description: HTTP method used for the request.
+        headers:
+          type:
+            - object
+            - "null"
+          additionalProperties: true
+        body:
+          description: Request body template.
+        body_schema:
+          type:
+            - object
+            - "null"
+          description: Optional schema describing the request/response payload.
+          additionalProperties: true
+        jmespath_query:
+          type:
+            - string
+            - "null"
+          description: Optional JMESPath projection applied to the response.
+        ai_field_config:
+          type: object
+          description: AI field-resolution settings for dynamic fields.
+          additionalProperties: true
+      additionalProperties: false
+      description: Custom webhook tool attached to an agent node.
+    WorkflowNodeAgentKnowledgeBase:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        knowledge_base_text:
+          type:
+            - string
+            - "null"
+          description: Inline knowledge base content available to the agent.
+      additionalProperties: false
+      description: Inline knowledge base attached to an agent node.
+    WorkflowNodeAgentMcpServer:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        url:
+          type:
+            - string
+            - "null"
+          description: MCP server base URL.
+        headers:
+          type:
+            - object
+            - "null"
+          additionalProperties: true
+      additionalProperties: false
+      description: MCP server definition attached to an agent node.
+    WorkflowNodeAgentResource:
+      type: object
+      properties:
+        id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Resource ID returned by definition responses.
+        resource_type:
+          type: string
+          enum:
+            - github_repository
+          description: Resource type. v1 supports GitHub repositories.
+        repo_url:
+          type: string
+          description: GitHub repository URL.
+          example: https://github.com/org/repo
+        owner:
+          type:
+            - string
+            - "null"
+          description: Repository owner returned by definition responses.
+        repo_name:
+          type:
+            - string
+            - "null"
+          description: Repository name returned by definition responses.
+        branch:
+          type:
+            - string
+            - "null"
+          description: Branch to clone. Defaults to the repository default branch.
+        auth_type:
+          type: string
+          enum:
+            - pat
+            - github_app
+            - public
+          description: >-
+            How the sandbox authenticates to the repository. `pat` requires a
+            Personal Access Token, `github_app` requires
+            `github_app_installation_id`, and `public` clears stored credentials.
+        pat:
+          type:
+            - string
+            - "null"
+          description: GitHub Personal Access Token. Accepted on write; never returned by the API.
+        has_pat:
+          type:
+            - boolean
+            - "null"
+          description: Returned when credentials are stored for the resource.
+        github_app_installation_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: >-
+            ID of the GitHub App connection used for this repository. It must reference an
+            connection that is active on the workflow's project and that grants
+            access to the repository.
+        has_github_app:
+          type:
+            - boolean
+            - "null"
+          description: Returned when the resource is backed by a GitHub App connection.
+        imported_missing_pat:
+          type:
+            - boolean
+            - "null"
+          description: Returned when an imported resource references credentials that were not present in the write payload.
+        imported_missing_github_app:
+          type:
+            - boolean
+            - "null"
+          description: >-
+            Returned when an imported resource requested GitHub App
+            authentication but no usable connection was available in the target
+            project. Select a connection before running the workflow.
+      additionalProperties: false
+      description: Repository resource mounted into an agent sandbox.
+    WorkflowNodeAgentConfig:
+      type: object
+      properties:
+        system_prompt:
+          type:
+            - string
+            - "null"
+        provider_model_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        provider_model_name:
+          type:
+            - string
+            - "null"
+        temperature:
+          type:
+            - number
+            - "null"
+        max_iterations:
+          type:
+            - integer
+            - "null"
+        max_tokens:
+          type:
+            - integer
+            - "null"
+        reasoning_effort:
+          type:
+            - string
+            - "null"
+          enum:
+            - none
+            - minimal
+            - low
+            - medium
+            - high
+            - xhigh
+            - max
+            - null
+        prompt_cache_ttl:
+          type: string
+          enum:
+            - 5m
+            - 1h
+          default: 5m
+          description: |
+            How long reusable prompt content stays cached. `1h` is only accepted for
+            Anthropic models (including Anthropic models served through OpenRouter);
+            other models must use `5m`.
+        observer_prompt_mode:
+          type: string
+          enum:
+            - analysis_only
+            - interactive_chat
+          description: Prompt orchestration mode used by the flow agent.
+        message_delivery_mode:
+          type: string
+          enum:
+            - auto_send_assistant_text
+            - tool_only
+          default: auto_send_assistant_text
+          description: |
+            Controls how assistant text becomes user-visible.
+            - `auto_send_assistant_text`: normal assistant text responses are sent to the WhatsApp user automatically.
+            - `tool_only`: normal assistant text is internal only; the agent must call `send_notification_to_user` to send user-visible messages.
+        enabled_default_tools:
+          type: array
+          items:
+            type: string
+          description: Built-in agent tools enabled for this node.
+          example:
+            - emit_event
+            - complete_task
+        default_tool_configs:
+          type: object
+          description: Optional configuration for built-in agent tools.
+          properties:
+            emit_event:
+              type: object
+              description: Configuration for the built-in `emit_event` tool.
+              properties:
+                event_definition_ids:
+                  type: array
+                  description: Optional allowlist of project event definition IDs the agent may emit. Omit or leave empty to allow any valid project event.
+                  items:
+                    type: string
+                    format: uuid
+              additionalProperties: false
+          additionalProperties: true
+        flow_agent_function_tools:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowNodeAgentFunctionTool"
+        flow_agent_webhooks:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowNodeAgentWebhook"
+        flow_agent_knowledge_bases:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowNodeAgentKnowledgeBase"
+        flow_agent_mcp_servers:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowNodeAgentMcpServer"
+        flow_agent_resources:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowNodeAgentResource"
+      additionalProperties: false
+      description: Config returned for `agent` nodes.
+    WorkflowNodeCallConfig:
+      type: object
+      properties:
+        workflow_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: ID of the called workflow.
+        workflow_name:
+          type:
+            - string
+            - "null"
+          description: Name of the called workflow.
+        save_error_to:
+          type:
+            - string
+            - "null"
+          description: Variable name where child-workflow errors should be stored.
+      additionalProperties: false
+      description: Config returned for `call` nodes.
+    WorkflowNodeHandoffConfig:
+      type: object
+      properties:
+        reason:
+          type:
+            - string
+            - "null"
+          description: Optional reason stored with the handoff event.
+        context_data:
+          description: Optional context payload made available to the human handoff process.
+      additionalProperties: false
+      description: Config for `handoff` nodes.
+    WorkflowNodeSetVariableConfig:
+      type: object
+      required:
+        - variable_name
+        - variable_value
+      properties:
+        variable_name:
+          type: string
+          description: Workflow variable name to set.
+        variable_value:
+          description: Value to store. Strings support variable interpolation.
+        value_type:
+          type: string
+          enum:
+            - string
+            - number
+            - boolean
+            - json
+          default: string
+          description: Value coercion mode.
+      additionalProperties: false
+      description: Config for `set_variable` nodes.
+    WorkflowNodeEmitEventConfig:
+      type: object
+      required:
+        - event_name
+      properties:
+        event_name:
+          type: string
+          description: Lowercase dotted snake_case Project Event name to emit.
+          example: conversation.csat_scored
+        properties:
+          type: object
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: number
+              - type: boolean
+              - type: "null"
+          description: Flat scalar Project Event properties. Values may be string, number, boolean, or null.
+          example:
+            score: 5
+            source: workflow
+        occurred_at:
+          type:
+            - string
+            - "null"
+          description: Optional ISO 8601 timestamp or workflow variable. Leave blank to use current time.
+          example: "{{vars.scored_at}}"
+      additionalProperties: false
+      description: Config for `emit_event` nodes.
+    WorkflowStepReference:
+      type: object
+      required:
+        - id
+        - identifier
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Internal ID of the workflow step
+        identifier:
+          type: string
+          description: Step identifier within the workflow (e.g., 'start', 'step1', 'agent_greeting')
+        stepable_type:
+          type:
+            - string
+            - "null"
+          description: |
+            Ruby class name of the step type (e.g., 'FlowAgentStep', 'FlowActionStep', 'FlowWaitStep', 'FlowDecideStep')
+        position:
+          type:
+            - object
+            - "null"
+          description: Canvas position for visual editor
+          properties:
+            x:
+              type: number
+            y:
+              type: number
+          additionalProperties: true
+      additionalProperties: true
+      description: Reference to a workflow step (used in execution current_step tracking)
+    WorkflowEvent:
+      type: object
+      required:
+        - id
+        - event_type
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Event identifier
+        event_type:
+          type: string
+          description: |
+            Event type indicating what happened in the workflow execution. Common types:
+            - `execution_started`, `execution_ended`, `execution_failed`: Execution lifecycle
+            - `step_entered`, `step_completed`, `step_failed`: Step lifecycle
+            - `decision_evaluating`, `decision_evaluated`: Conditional branching
+            - `action_executing`, `action_performed`, `action_failed`: Action execution
+            - `variables_set`, `variables_merged`: Variable updates
+            - `wait_timeout`, `user_input_received`: Wait step events
+            - `agent_iteration_started`, `agent_tool_called`, `agent_message_sent`: Agent step events
+        direction:
+          type:
+            - string
+            - "null"
+          description: Edge direction/label for transition events (used when moving between steps)
+        edge_label:
+          type:
+            - string
+            - "null"
+          description: Label of the edge taken during decision or transition events
+        created_at:
+          type: string
+          format: date-time
+          description: Event timestamp
+        payload:
+          type: object
+          additionalProperties: true
+          description: Event-specific data (varies by event_type)
+        step:
+          $ref: "#/components/schemas/WorkflowStepReference"
+      description: Workflow execution event capturing state changes and transitions
+    WorkflowCreateRequest:
+      type: object
+      required:
+        - workflow
+      properties:
+        workflow:
+          type: object
+          required:
+            - name
+          properties:
+            name:
+              type: string
+              description: Workflow name (must be unique within project)
+            slug:
+              type: string
+              description: |
+                Optional URL-safe identifier. Auto-generated from `name` if omitted. Lowercase alphanumeric with hyphens. Unique within the project.
+              pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+              example: inbound-support
+            description:
+              type:
+                - string
+                - "null"
+              description: Optional workflow description
+            definition:
+              $ref: "#/components/schemas/WorkflowDefinitionInput"
+              description: |
+                Initial workflow graph structure. Can be minimal (just a start node) or fully defined. Field names are snake_case. The definition contains:
+                - `nodes`: Array of workflow steps with `node_type`, `config`, and position
+                - `edges`: Array of transitions connecting steps
+
+                Example minimal definition:
+                ```json
+                {
+                  "nodes": [{
+                    "id": "start",
+                    "type": "flow-node",
+                    "position": {"x": 100, "y": 100},
+                    "data": {"node_type": "start", "config": {}, "display_name": "Start"}
+                  }],
+                  "edges": []
+                }
+                ```
+    WorkflowUpdateRequest:
+      type: object
+      required:
+        - workflow
+      properties:
+        workflow:
+          type: object
+          properties:
+            name:
+              type: string
+              description: Workflow name (must be unique within project)
+            slug:
+              type: string
+              description: |
+                URL-safe identifier. Slug is decoupled from name — renaming the workflow does not change the slug, you must update it explicitly.
+              pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+              example: inbound-support
+            description:
+              type:
+                - string
+                - "null"
+              description: Workflow description
+            status:
+              type: string
+              enum:
+                - draft
+                - active
+                - archived
+              description: Workflow lifecycle status
+            message_debounce_seconds:
+              type:
+                - integer
+                - "null"
+              description: "Debounce window for incoming messages in seconds (default: 1)"
+            inbound_message_read_mode:
+              type: string
+              enum:
+                - disabled
+                - read_only
+                - read_with_typing
+              description: |
+                Controls how inbound WhatsApp messages are marked as read before the workflow responds.
+                - `disabled`: Do nothing
+                - `read_only`: Mark as read, no typing indicator
+                - `read_with_typing`: Mark as read and show typing indicator (default)
+            lock_version:
+              type: integer
+              description: Current optimistic lock version. Required to prevent concurrent modification conflicts.
+            definition:
+              $ref: "#/components/schemas/WorkflowDefinitionInput"
+              description: |
+                Updated workflow graph structure. Omit `definition` to update metadata only. Inside `definition`, omit `nodes` or `edges` to leave that collection unchanged; include `nodes` or `edges` only when sending the complete desired set for that collection.
+    WorkflowExecutionSummary:
+      type: object
+      required:
+        - id
+        - status
+        - started_at
+        - last_event_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique execution identifier
+        status:
+          type: string
+          enum:
+            - running
+            - waiting
+            - ended
+            - failed
+            - handoff
+          description: |
+            Execution status:
+            - `running`: Currently executing workflow steps
+            - `waiting`: Paused, awaiting user input or timeout
+            - `ended`: Successfully completed
+            - `failed`: Terminated due to error
+            - `handoff`: Transferred to human agent
+        started_at:
+          type: string
+          format: date-time
+          description: Execution start timestamp
+        ended_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Execution completion timestamp, null if still active
+        last_event_at:
+          type: string
+          format: date-time
+          description: Timestamp of most recent workflow event or activity
+        tracking_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Optional external tracking identifier for correlating with external systems
+        whatsapp_conversation_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Associated WhatsApp conversation identifier, links execution to its conversation
+        workflow:
+          $ref: "#/components/schemas/WorkflowMinimal"
+        current_step:
+          $ref: "#/components/schemas/WorkflowStepReference"
+      description: Minimal execution representation for list endpoints
+    WorkflowExecution:
+      allOf:
+        - $ref: "#/components/schemas/WorkflowExecutionSummary"
+        - type: object
+          properties:
+            error_details:
+              type:
+                - object
+                - "null"
+              description: Error information when status is 'failed' (error message, stack trace, step identifier)
+              additionalProperties: true
+      description: Base workflow execution schema
+    WorkflowExecutionDetail:
+      allOf:
+        - $ref: "#/components/schemas/WorkflowExecution"
+        - type: object
+          properties:
+            resumable_execution_id:
+              type:
+                - string
+                - "null"
+              format: uuid
+              description: |
+                Execution that accepts a resume request right now. Equals `id` for a plain waiting execution, and points to the child execution when this execution is waiting at a call workflow step. Null when no execution in the chain is waiting.
+            execution_context:
+              type: object
+              description: |
+                Full execution context with standard structure. This is the exact execution context stored on the execution.
+              properties:
+                vars:
+                  type:
+                    - object
+                    - "null"
+                  description: User-defined variables set during workflow execution (key-value pairs)
+                  additionalProperties: true
+                  example:
+                    lead_id: 123
+                    last_user_input:
+                      button_id: yes
+                system:
+                  type:
+                    - object
+                    - "null"
+                  description: System fields including trigger_type, tracking_id, and other internal metadata
+                  properties:
+                    trigger_type:
+                      type: string
+                      description: How the execution was initiated
+                      example: api_call
+                    tracking_id:
+                      type: string
+                      format: uuid
+                      description: External tracking identifier for correlation
+                  additionalProperties: true
+                context:
+                  type:
+                    - object
+                    - "null"
+                  description: Contextual data about the execution environment (channel, phone_number, etc.)
+                  properties:
+                    channel:
+                      type: string
+                      description: Communication channel
+                      example: api
+                    phone_number:
+                      type: string
+                      description: Phone number associated with execution
+                      example: "+15551234567"
+                  additionalProperties: true
+                metadata:
+                  type:
+                    - object
+                    - "null"
+                  description: Optional extra data (request details, timestamps, etc.)
+                  properties:
+                    request:
+                      type: object
+                      description: Request metadata
+                      properties:
+                        ip:
+                          type: string
+                        user_agent:
+                          type: string
+                        timestamp:
+                          type: string
+                          format: date-time
+                      additionalProperties: true
+                  additionalProperties: true
+              additionalProperties: true
+            events:
+              type: array
+              description: Chronological log of workflow events (step transitions, variable updates, agent actions)
+              items:
+                $ref: "#/components/schemas/WorkflowEvent"
+      description: Detailed execution with full context and event history (only returned by show endpoint)
+    WorkflowExecutionCreateRequest:
+      type: object
+      required:
+        - workflow_execution
+      properties:
+        workflow_execution:
+          type: object
+          anyOf:
+            - required:
+                - phone_number
+            - required:
+                - recipient
+          properties:
+            phone_number:
+              type: string
+              description: |
+                E.164 formatted phone number for the conversation participant (e.g., '+14155552671'). This number will be normalized and used for conversation routing. Either `phone_number` or `recipient` is required.
+              example: "+14155552671"
+            recipient:
+              type: string
+              description: |
+                Business-scoped user ID (BSUID) or parent BSUID of the conversation participant, used when you have no phone number for them. Either `phone_number` or `recipient` is required. If both are sent, the phone number is used for conversation routing and the BSUID is kept as the participant identity. BSUID recipients are not supported on sandbox numbers.
+              example: US.13491208655302741918
+            phone_number_id:
+              type: string
+              description: |
+                WhatsApp phone number identifier to use for sending messages. Use this to specify which WhatsApp Business number should handle the conversation. Preferred over whatsapp_config_id.
+            whatsapp_config_id:
+              type: integer
+              deprecated: true
+              description: |
+                [DEPRECATED] Internal WhatsApp configuration ID. Use phone_number_id instead. This field is maintained for backward compatibility but may be removed in future versions.
+            variables:
+              type: object
+              description: |
+                Initial user-defined variables available to the workflow (key-value pairs). These variables can be accessed and modified throughout workflow execution using variable syntax (e.g., {{user.name}}).
+              additionalProperties: true
+              example:
+                user_name: Alice
+                order_id: ORD-12345
+                priority: high
+            context:
+              type: object
+              description: |
+                Additional contextual data passed to the workflow but not treated as user variables. Use this for metadata or system-specific information that shouldn't be part of the variable namespace.
+              additionalProperties: true
+              example:
+                source: mobile_app
+                campaign_id: SUMMER2024
+            initial_data:
+              type: object
+              description: |
+                Custom payload passed to the workflow's first step. Structure depends on the workflow's initial node configuration. Use this for complex initialization data.
+              additionalProperties: true
+      description: |
+        Request to start a new workflow execution. Executions are processed asynchronously - you'll receive a tracking_id immediately and can poll for results using GET /workflow_executions/{id}.
+    WorkflowExecutionCreateAccepted:
+      type: object
+      required:
+        - message
+        - workflow_id
+        - id
+        - tracking_id
+      properties:
+        message:
+          type: string
+          description: Confirmation message
+          example: Workflow execution initiated
+        workflow_id:
+          type: string
+          format: uuid
+          description: ID of the workflow being executed
+        id:
+          type: string
+          format: uuid
+          description: |
+            Unique execution identifier. Use this to retrieve execution details via GET /workflow_executions/{id} or to resume waiting executions via POST /workflow_executions/{id}/resume.
+        tracking_id:
+          type: string
+          format: uuid
+          description: |
+            Unique identifier for tracking this execution. Use this to query execution status via GET /workflow_executions (filter by tracking_id) or to correlate execution events with external systems.
+      description: |
+        Async response returned when workflow execution is successfully queued (HTTP 202 Accepted). The execution will begin processing in the background. Use the id to retrieve execution details or the tracking_id to monitor progress.
+    WorkflowExecutionResumeRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: object
+          required:
+            - data
+          properties:
+            kind:
+              type: string
+              default: payload
+              description: |
+                Message kind. Defaults to "payload" if omitted.
+              example: payload
+            data:
+              description: |
+                Message data. Can be any JSON value - string, object, or array. This is passed to the workflow step that is waiting for input.
+              oneOf:
+                - type: string
+                  example: yes, proceed
+                - type: object
+                  example:
+                    type: interactive_reply
+                    button_id: btn_confirm
+                    payload: Please proceed
+                - type: array
+                  example:
+                    - option1
+                    - option2
+        variables:
+          type: object
+          description: |
+            Optional variables to merge into the execution context. These variables will be added to the `vars` section of the execution context, making them available throughout the workflow. New variables are merged with existing ones - duplicate keys will be overwritten with new values.
+          additionalProperties: true
+          example:
+            estado: retomado
+            custom_var: 123
+            user_response: confirmed
+      description: |
+        Request to resume a workflow execution that is in 'waiting' status. Executions wait when they reach a wait_for_response step or when explicitly paused. The message data can be a simple string for text responses or a structured object for complex interactions.
+
+        You can optionally include variables to update the execution context with new or modified variables that will be available to subsequent workflow steps.
+    WorkflowExecutionUpdateRequest:
+      type: object
+      required:
+        - workflow_execution
+      properties:
+        workflow_execution:
+          type: object
+          required:
+            - status
+          properties:
+            status:
+              type: string
+              enum:
+                - ended
+                - handoff
+                - waiting
+              description: |
+                The new status for the workflow execution. Only specific transitions are allowed based on the current state.
+              example: ended
+      description: |
+        Request to update a workflow execution status. Only certain status transitions are allowed (ended, handoff, waiting). The execution will transition to the new status if the transition is valid according to the workflow state machine.
+    WorkflowTrigger:
+      type: object
+      required:
+        - id
+        - workflow_id
+        - trigger_type
+        - active
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique trigger identifier
+        workflow_id:
+          type: string
+          format: uuid
+          description: ID of the workflow this trigger belongs to
+        trigger_type:
+          type: string
+          enum:
+            - inbound_message
+            - api_call
+            - whatsapp_event
+            - project_event
+          description: |
+            Trigger activation mechanism:
+            - `inbound_message`: Triggered by incoming WhatsApp messages to a specific phone number
+            - `api_call`: Triggered by POST /workflows/{id}/executions API calls
+            - `whatsapp_event`: Triggered by WhatsApp events (message and conversation lifecycle)
+            - `project_event`: Triggered by an emitted Project Event
+        active:
+          type: boolean
+          description: |
+            Whether this trigger is enabled. Inactive triggers will not start workflow executions even when their conditions are met. Use this to temporarily disable a trigger without deleting it.
+        display_name:
+          type:
+            - string
+            - "null"
+          description: |
+            Human-readable trigger name. Format varies by type:
+            - Inbound message: "WhatsApp: [phone number display name]"
+            - API call: "API Call Trigger"
+            - Project event: "Event: [event name]"
+        created_at:
+          type: string
+          format: date-time
+          description: Trigger creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last modification timestamp
+        triggerable:
+          type: object
+          description: |
+            Type-specific trigger configuration. Structure varies by trigger_type:
+            - For `inbound_message`: Contains phone_number_id
+            - For `api_call`: Empty object
+            - For `whatsapp_event`: Contains event and optional phone_number_id
+            - For `project_event`: Contains event_name and optional property filter fields
+          oneOf:
+            - type: object
+              description: Inbound message trigger configuration
+              required:
+                - phone_number_id
+              properties:
+                phone_number_id:
+                  type: string
+                  description: WhatsApp Business phone number ID that will trigger the workflow
+            - type: object
+              description: API call trigger configuration (no additional fields)
+              additionalProperties: false
+            - type: object
+              description: WhatsApp event trigger configuration
+              required:
+                - event
+              properties:
+                event:
+                  type: string
+                  enum:
+                    - whatsapp.message.received
+                    - whatsapp.message.sent
+                    - whatsapp.message.failed
+                    - whatsapp.conversation.created
+                    - whatsapp.conversation.ended
+                  description: WhatsApp event type that will trigger the workflow
+                phone_number_id:
+                  type: string
+                  description: Optional WhatsApp Business phone number ID to scope trigger to specific number
+            - type: object
+              description: Project Event trigger configuration
+              required:
+                - event_name
+              properties:
+                event_name:
+                  type: string
+                  description: Lowercase dotted snake_case Project Event name that starts the workflow.
+                  example: conversation.csat_scored
+                property_key:
+                  type:
+                    - string
+                    - "null"
+                  description: Optional Project Event property key to filter on.
+                  example: score
+                operator:
+                  type:
+                    - string
+                    - "null"
+                  enum:
+                    - eq
+                    - lt
+                    - lte
+                    - gt
+                    - gte
+                    - null
+                  description: Optional property comparison operator.
+                property_value:
+                  description: Optional non-null comparison value when `property_key` and `operator` are provided.
+      description: Workflow trigger defining when and how a workflow execution should start
+    WorkflowTriggerCreateRequest:
+      type: object
+      required:
+        - trigger
+      properties:
+        trigger:
+          type: object
+          required:
+            - trigger_type
+          properties:
+            trigger_type:
+              type: string
+              enum:
+                - inbound_message
+                - api_call
+                - whatsapp_event
+                - project_event
+              description: |
+                Type of trigger to create:
+                - `inbound_message`: Workflow starts when messages arrive at a WhatsApp number (requires phone_number_id)
+                - `api_call`: Workflow starts via API endpoint (no phone_number_id needed)
+                - `whatsapp_event`: Workflow starts on WhatsApp events (requires event, optional phone_number_id)
+                - `project_event`: Workflow starts when a matching Project Event is emitted (requires event_name)
+            active:
+              type: boolean
+              description: Whether the trigger should be active immediately after creation
+              default: true
+            phone_number_id:
+              type: string
+              description: |
+                **Required for inbound_message triggers.** For whatsapp_event triggers, optional to scope to specific number. WhatsApp Business phone number ID that will trigger this workflow. Messages to this number will start workflow executions. Not used for api_call triggers.
+              example: "123456789012345"
+            event:
+              type: string
+              enum:
+                - whatsapp.message.received
+                - whatsapp.message.sent
+                - whatsapp.message.failed
+                - whatsapp.conversation.created
+                - whatsapp.conversation.ended
+              description: |
+                **Required for whatsapp_event triggers.** WhatsApp event type that will trigger the workflow. Not used for inbound_message or api_call triggers.
+            event_name:
+              type: string
+              description: |
+                **Required for project_event triggers.** Lowercase dotted snake_case Project Event name.
+              example: conversation.csat_scored
+            property_key:
+              type: string
+              description: Optional Project Event property key to filter on.
+              example: score
+            operator:
+              type: string
+              enum:
+                - eq
+                - lt
+                - lte
+                - gt
+                - gte
+              description: Optional Project Event property comparison operator.
+            property_value:
+              description: Optional non-null Project Event property comparison value.
+      description: Request to create a new workflow trigger
+    WorkflowTriggerBulkReplaceRequest:
+      type: object
+      required:
+        - triggers
+      properties:
+        triggers:
+          type: array
+          description: |
+            Complete desired set of triggers. Existing triggers not in this list are deleted. An empty array removes all triggers.
+          items:
+            type: object
+            required:
+              - trigger_type
+            properties:
+              trigger_type:
+                type: string
+                enum:
+                  - inbound_message
+                  - api_call
+                  - whatsapp_event
+                  - project_event
+              active:
+                type: boolean
+                default: true
+              phone_number_id:
+                type: string
+                description: Required for `inbound_message`. Optional scope for `whatsapp_event`. Not used for `api_call`.
+              event:
+                type: string
+                enum:
+                  - whatsapp.message.received
+                  - whatsapp.message.sent
+                  - whatsapp.message.failed
+                  - whatsapp.conversation.created
+                  - whatsapp.conversation.ended
+                description: Required for `whatsapp_event` triggers.
+              event_name:
+                type: string
+                description: Required for `project_event` triggers.
+                example: conversation.csat_scored
+              property_key:
+                type: string
+                description: Optional Project Event property key to filter on.
+              operator:
+                type: string
+                enum:
+                  - eq
+                  - lt
+                  - lte
+                  - gt
+                  - gte
+                description: Optional Project Event property comparison operator.
+              property_value:
+                description: Optional non-null Project Event property comparison value.
+      description: |
+        Atomic bulk-replace request body. Use with `PUT /workflows/{workflow_id}/triggers` to declaratively sync trigger configuration.
+    WorkflowTriggerUpdateRequest:
+      type: object
+      required:
+        - trigger
+      properties:
+        trigger:
+          type: object
+          properties:
+            active:
+              type: boolean
+              description: Enable or disable the trigger
+      description: |
+        Request to update a workflow trigger. Currently only the 'active' status can be modified. To change trigger type or phone number, delete and recreate the trigger.
+    WorkflowTriggerListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowTrigger"
+      description: List of workflow triggers
+    WorkflowTriggerResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/WorkflowTrigger"
+      description: Single workflow trigger response
+    Function:
+      type: object
+      required:
+        - id
+        - name
+        - slug
+        - status
+        - function_type
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique function identifier
+        name:
+          type: string
+          description: Function display name (user-friendly identifier)
+        slug:
+          type: string
+          description: |
+            URL-safe function identifier (lowercase alphanumeric with hyphens). Used in endpoint URLs. Must match pattern: /^[a-z0-9-]+$/
+          pattern: ^[a-z0-9-]+$
+          example: calculate-shipping-cost
+        lock_version:
+          type: integer
+          description: |
+            Optimistic locking version. Increments on each update. Include this value on update to detect concurrent modifications — stale values return `409 Conflict`.
+          example: 0
+        description:
+          type:
+            - string
+            - "null"
+          description: Optional function description explaining purpose and usage
+        code:
+          type: string
+          description: |
+            JavaScript function code. Maximum size: 1 megabyte. This is the actual code that will execute when the function is invoked. Must be valid JavaScript that can run in the target environment (Cloudflare Workers or Supabase Edge Functions).
+        version:
+          type:
+            - integer
+            - "null"
+          description: |
+            Function version number. Increments with each deployment. Use this to track which version is currently deployed in production.
+        status:
+          type: string
+          enum:
+            - draft
+            - deployed
+            - error
+          description: |
+            Deployment status:
+            - `draft`: Function code saved but not yet deployed to runtime
+            - `deployed`: Successfully deployed and available for invocation
+            - `error`: Deployment failed (check error logs for details)
+        last_deployed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Timestamp of most recent successful deployment, null if never deployed
+        function_type:
+          type: string
+          enum:
+            - cloudflare_worker
+            - supabase_function
+          description: |
+            Serverless runtime platform:
+            - `cloudflare_worker`: Deploys to Cloudflare Workers (global edge network)
+            - `supabase_function`: Deploys to Supabase Edge Functions (Deno runtime)
+        invoke_response_mode:
+          type: string
+          enum:
+            - wrapped
+            - passthrough
+          default: passthrough
+          description: |
+            Controls how successful invoke responses are returned:
+            - `wrapped`: Legacy behavior. Successful JSON responses are nested under `data`.
+            - `passthrough`: Kapso forwards the function response body, status code, and `Content-Type` directly.
+
+            Existing functions may still be `wrapped`. Newly created functions default to `passthrough`.
+        public_endpoint:
+          type: boolean
+          default: false
+          description: |
+            Whether the invoke endpoint can be called without an API key. Only supported for `cloudflare_worker` functions.
+            When `true`, Kapso serves the function through the Platform API invoke route and anonymous requests are allowed.
+        runtime_config:
+          type:
+            - object
+            - "null"
+          description: |
+            Platform-specific runtime configuration. Structure varies by function_type. Use this to configure environment variables, resource limits, or platform-specific features.
+          additionalProperties: true
+        endpoint_url:
+          type:
+            - string
+            - "null"
+          format: uri
+          description: |
+            Invocation URL for this function. Computed based on `function_type`.
+            - `cloudflare_worker`: `https://api.kapso.ai/platform/v1/functions/{function_id}/invoke`
+            - `supabase_function`: Direct Supabase Edge Function URL
+
+            For private Cloudflare functions, include `X-API-Key`. For public Cloudflare functions (`public_endpoint=true`), the API key is optional.
+          example: https://api.kapso.ai/platform/v1/functions/{function_id}/invoke
+        project_id:
+          type: string
+          format: uuid
+          description: Project this function belongs to
+        created_by_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: ID of user who created this function
+        created_at:
+          type: string
+          format: date-time
+          description: Function creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last modification timestamp
+      description: |
+        Serverless function configuration. Functions are custom JavaScript code that runs on-demand in response to API invocations. Deploy functions to either Cloudflare Workers (global edge network) or Supabase Edge Functions (Deno runtime).
+    FunctionCreateRequest:
+      type: object
+      required:
+        - function
+      properties:
+        function:
+          type: object
+          required:
+            - name
+            - code
+            - function_type
+          properties:
+            name:
+              type: string
+              description: Function display name (user-friendly identifier)
+              example: Calculate Shipping Cost
+            slug:
+              type: string
+              description: |
+                URL-safe function identifier (optional - auto-generated from name if not provided). Must be lowercase alphanumeric with hyphens only.
+              pattern: ^[a-z0-9-]+$
+              example: calculate-shipping-cost
+            description:
+              type: string
+              description: Optional function description
+              example: Calculates shipping cost based on weight, distance, and service level
+            code:
+              type: string
+              description: |
+                JavaScript function code (max 1MB). Must be valid JavaScript for the target runtime. For Cloudflare Workers, use standard JavaScript. For Supabase Functions, use Deno-compatible code.
+              example: |
+                export default async function(request) {
+                  const { weight, distance, service } = await request.json();
+                  const baseCost = weight * 0.5;
+                  const distanceCost = distance * 0.1;
+                  const serviceFee = service === 'express' ? 10 : 0;
+                  return new Response(JSON.stringify({
+                    cost: baseCost + distanceCost + serviceFee
+                  }));
+                }
+            function_type:
+              type: string
+              enum:
+                - cloudflare_worker
+                - supabase_function
+              description: |
+                Target serverless platform. Choose based on your deployment requirements:
+                - `cloudflare_worker`: Fast global edge deployment, standard JavaScript
+                - `supabase_function`: Deno runtime with built-in Supabase client
+              example: cloudflare_worker
+            public_endpoint:
+              type: boolean
+              default: false
+              description: |
+                Allow invoke requests without an API key. Only supported for `cloudflare_worker` functions.
+            runtime_config:
+              type: object
+              description: Platform-specific runtime configuration (environment variables, resource limits, etc.)
+              additionalProperties: true
+              example:
+                timeout: 30
+                memory: 128
+      description: |
+        Request to create a new serverless function. The function will be saved in draft status. Use POST /functions/{id}/deploy to deploy it to the runtime platform.
+    FunctionUpdateRequest:
+      type: object
+      required:
+        - function
+      properties:
+        function:
+          type: object
+          properties:
+            name:
+              type: string
+              description: Function display name
+            slug:
+              type: string
+              description: URL-safe function identifier (lowercase alphanumeric with hyphens)
+              pattern: ^[a-z0-9-]+$
+            lock_version:
+              type: integer
+              description: |
+                Optional. Include the current lock version to enable concurrent-modification detection — stale values return `409 Conflict`. If omitted, the update proceeds without conflict checking.
+            description:
+              type: string
+              description: Function description
+            code:
+              type: string
+              description: |
+                Updated JavaScript function code. After updating code, you must redeploy the function using POST /functions/{id}/deploy for changes to take effect in production.
+            invoke_response_mode:
+              type: string
+              enum:
+                - wrapped
+                - passthrough
+              description: |
+                Controls how successful invoke responses are returned for existing functions.
+                - `passthrough`: Forward the function response body, status code, and `Content-Type` directly.
+                - `wrapped`: Preserve the legacy Kapso API wrapper and return successful JSON results under `data`.
+
+                New functions default to `passthrough`. `wrapped` is only available for legacy wrapped functions.
+            runtime_config:
+              type: object
+              description: Platform-specific runtime configuration
+              additionalProperties: true
+            public_endpoint:
+              type: boolean
+              description: |
+                Allow invoke requests without an API key. Only supported for `cloudflare_worker` functions.
+      description: |
+        Request to update an existing function. Supports partial updates - only include fields you want to change. Important: Code updates are saved but not automatically deployed. You must call POST /functions/{id}/deploy to deploy changes to production.
+    FunctionDeployResponse:
+      type: object
+      required:
+        - message
+        - function_id
+        - status
+      properties:
+        message:
+          type: string
+          description: Deployment confirmation message
+          example: Function deployment initiated
+        function_id:
+          type: string
+          format: uuid
+          description: ID of the function being deployed
+        status:
+          type: string
+          description: Deployment status indicator
+          example: deploying
+      description: |
+        Async deployment response (HTTP 202 Accepted). Deployment happens in the background and may take 10-60 seconds. Poll GET /functions/{id} to check when status changes from 'draft' to 'deployed' (or 'error' if deployment fails).
+    FunctionInvokeRequest:
+      type: object
+      description: |
+        Payload to send to the function. Structure is completely flexible - send any valid JSON that your function expects. The payload will be forwarded to your function as the request body.
+      additionalProperties: true
+      example:
+        weight: 5.5
+        distance: 120
+        service: express
+    FunctionInvokeResponse:
+      description: |
+        Successful invoke output for functions using `invoke_response_mode=passthrough`.
+        Kapso forwards the upstream response body directly and preserves the upstream success status code and `Content-Type`.
+      oneOf:
+        - type: object
+          additionalProperties: true
+        - type: array
+          items: {}
+        - type: string
+        - type: number
+        - type: boolean
+      example:
+        cost: 24.75
+        currency: USD
+    FunctionInvokeWrappedResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          description: |
+            Successful invoke output for functions using `invoke_response_mode=wrapped`.
+            Kapso preserves the legacy API shape by nesting successful JSON responses under `data`.
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: array
+              items: {}
+            - type: string
+            - type: number
+            - type: boolean
+      example:
+        data:
+          cost: 24.75
+          currency: USD
+    FunctionSecret:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          description: Secret name (used as environment variable key in function runtime)
+          example: STRIPE_API_KEY
+        type:
+          type: string
+          enum:
+            - text
+            - json
+            - inherited
+          description: |
+            Secret value type:
+            - `text`: Plain text string value
+            - `json`: JSON object or array value
+            - `inherited`: Secret value inherited from project-level configuration
+        value:
+          type:
+            - string
+            - object
+            - "null"
+          description: |
+            Secret value (only returned when creating, never in list responses for security). For 'text' type: string value. For 'json' type: parsed JSON object. For 'inherited' type: null.
+      description: Secret configuration for functions (API keys, credentials, etc.)
+    FunctionSecretListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required:
+              - name
+              - type
+            properties:
+              name:
+                type: string
+                description: Secret name
+              type:
+                type: string
+                enum:
+                  - text
+                  - json
+                  - inherited
+                description: Secret value type
+      description: |
+        List of function secrets. Note: Secret values are never included in list responses for security. Values are only returned when creating a secret.
+    FunctionSecretCreateRequest:
+      type: object
+      required:
+        - secret
+      properties:
+        secret:
+          type: object
+          required:
+            - name
+            - value
+          properties:
+            name:
+              type: string
+              description: |
+                Secret name (used as environment variable in function). Must be uppercase alphanumeric with underscores. Will be available in your function as an environment variable.
+              pattern: ^[A-Z0-9_]+$
+              example: STRIPE_API_KEY
+            value:
+              type:
+                - string
+                - object
+              description: |
+                Secret value. For text secrets: provide a string. For JSON secrets: provide an object or array. The type will be automatically detected based on the value structure.
+              example: sk_test_abc123xyz
+      description: |
+        Request to create a function secret. Secrets are injected as environment variables when your function executes. Use this to store API keys, credentials, or configuration without hardcoding them in your function code.
+    FunctionListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Function"
+      description: List of functions for the project
+    FunctionResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/Function"
+      description: Single function response
+    SimpleMessageResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Success or confirmation message
+      description: Simple message response for operations that don't return resource data
+    WorkflowListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Workflow"
+      description: List of workflows for the project
+    WorkflowResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/Workflow"
+      description: Single workflow response
+    WorkflowWithDefinitionResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/WorkflowWithDefinition"
+      description: Single workflow response including the canvas definition and editor metadata
+    WorkflowExecutionListResponse:
+      type: object
+      required:
+        - data
+        - paging
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowExecutionSummary"
+        paging:
+          $ref: "#/components/schemas/Paging"
+      description: List of workflow executions with cursor pagination metadata
+    WorkflowEventListResponse:
+      type: object
+      required:
+        - data
+        - paging
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowEvent"
+        paging:
+          $ref: "#/components/schemas/Paging"
+      description: List of workflow execution events with cursor pagination metadata
+    WorkflowExecutionResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/WorkflowExecutionDetail"
+      description: Single workflow execution with full details
+    WorkflowExecutionCreateAcceptedResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/WorkflowExecutionCreateAccepted"
+      description: Async workflow execution initiation response (HTTP 202)
+    WorkflowExecutionMinimalResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/WorkflowExecution"
+      description: Minimal workflow execution response (without execution_context and events)
+    WorkflowExecutionResumeResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          allOf:
+            - $ref: "#/components/schemas/WorkflowExecutionSummary"
+            - type: object
+              properties:
+                requested_execution_id:
+                  type: string
+                  format: uuid
+                  description: |
+                    Execution ID sent in the request path. Differs from `id` when the input was routed to a child execution started by a call workflow step.
+                parent_flow_execution_id:
+                  type:
+                    - string
+                    - "null"
+                  format: uuid
+                  description: Parent execution of the resumed execution, null when it has no parent.
+      description: |
+        Response of the resume endpoint. `data` describes the execution that actually received the input, which is not always the execution in the request path.
+    WorkflowVariablesResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - fixed
+            - discovered
+          properties:
+            fixed:
+              type: object
+              description: Built-in variables always available in workflows
+              properties:
+                system:
+                  type: object
+                  description: System variables (flow_id, started_at, trigger_type, etc.)
+                  additionalProperties:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        description: Variable data type (string, number, datetime, array, object)
+                      description:
+                        type: string
+                        description: Human-readable description
+                      always_available:
+                        type: boolean
+                        description: Whether this variable is always present
+                context:
+                  type: object
+                  description: Context variables (channel, phone_number, contact, etc.)
+                  additionalProperties:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      description:
+                        type: string
+                      always_available:
+                        type: boolean
+            discovered:
+              type: object
+              description: Variables discovered from workflow execution history
+              properties:
+                system:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/DiscoveredVariable"
+                context:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/DiscoveredVariable"
+                vars:
+                  type: array
+                  description: User-defined variables discovered during executions
+                  items:
+                    $ref: "#/components/schemas/DiscoveredVariable"
+      description: Workflow variables including fixed system variables and discovered user variables
+    DiscoveredVariable:
+      type: object
+      required:
+        - path
+        - name
+        - type
+      properties:
+        path:
+          type: string
+          description: Full variable path (e.g., "vars.user_name", "system.flow_id")
+        name:
+          type: string
+          description: Variable name without namespace
+        type:
+          type:
+            - string
+            - "null"
+          description: Inferred data type (string, number, boolean, object, array)
+        sample_values:
+          type: array
+          description: Sample values observed during executions (up to 5)
+          items:
+            type:
+              - string
+              - number
+              - boolean
+              - object
+              - "null"
+        usage_count:
+          type: integer
+          description: Number of times this variable has been set
+        last_seen_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Last time this variable was recorded
+        reference:
+          type: string
+          description: Template reference syntax (e.g., "{{vars.user_name}}")
+      description: Variable discovered from workflow execution history
+    FunctionInvocationsResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - function_id
+            - function_name
+            - invocations
+            - total
+          properties:
+            function_id:
+              type: string
+              format: uuid
+              description: Function identifier
+            function_name:
+              type: string
+              description: Function display name
+            invocations:
+              type: array
+              items:
+                $ref: "#/components/schemas/FunctionInvocationDetail"
+            total:
+              type: integer
+              description: Number of invocations returned
+      description: Function invocations with console logs
+    FunctionInvocationDetail:
+      type: object
+      required:
+        - id
+        - status_code
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Invocation identifier
+        status_code:
+          type: integer
+          description: HTTP status code returned by the function
+        duration_ms:
+          type:
+            - integer
+            - "null"
+          description: Execution duration in milliseconds
+        request_body:
+          type:
+            - object
+            - "null"
+          additionalProperties: true
+          description: Request payload sent to the function
+        response_body:
+          type:
+            - object
+            - "null"
+          additionalProperties: true
+          description: Response returned by the function
+        error_message:
+          type:
+            - string
+            - "null"
+          description: Error message if invocation failed
+        created_at:
+          type: string
+          format: date-time
+          description: Invocation timestamp
+        console_logs:
+          type: array
+          description: Console logs captured during execution
+          items:
+            $ref: "#/components/schemas/FunctionConsoleLog"
+      description: Single function invocation with execution details
+    FunctionConsoleLog:
+      type: object
+      required:
+        - level
+        - message
+        - logged_at
+      properties:
+        level:
+          type: string
+          description: Log level (info, warn, error, debug)
+        message:
+          type: string
+          description: Log message content
+        logged_at:
+          type: string
+          format: date-time
+          description: Timestamp when the log was recorded
+        stack:
+          type:
+            - string
+            - "null"
+          description: Stack trace (if error)
+      description: Console log entry from function execution
+  responses:
+    UnauthorizedError:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+paths:
+  /workflows:
+    get:
+      tags:
+        - Workflows
+      summary: List workflows
+      description: |
+        Retrieve all workflows for your project. Workflows are returned ordered by creation time (newest first). Use query parameters to filter by status, name, or creation date.
+
+        Common use cases:
+        - List all active workflows ready for execution
+        - Find workflows by partial name match
+        - Audit workflow creation over time
+      operationId: listWorkflows
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - draft
+              - active
+              - archived
+          description: Filter by workflow status (draft, active, or archived)
+        - name: name_contains
+          in: query
+          schema:
+            type: string
+          description: Case-insensitive substring search on workflow name
+          example: onboarding
+        - name: created_after
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Only return workflows created on or after this timestamp
+        - name: created_before
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Only return workflows created on or before this timestamp
+      responses:
+        "200":
+          description: Workflows retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowListResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+    post:
+      tags:
+        - Workflows
+      summary: Create workflow
+      description: |
+        Create a new workflow in draft status. You can provide a minimal definition (just a start node) and build out the workflow later, or provide a complete workflow definition with all nodes and edges.
+
+        After creating a workflow, you can:
+        1. Update the definition to add more nodes/edges
+        2. Create triggers to specify when the workflow should execute
+        3. Activate the workflow by changing status to 'active'
+      operationId: createWorkflow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowCreateRequest"
+      responses:
+        "201":
+          description: Workflow created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /workflows/{workflow_id}:
+    parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Workflow identifier
+    get:
+      tags:
+        - Workflows
+      summary: Retrieve workflow
+      description: |
+        Get workflow metadata, status, and execution stats for a specific workflow.
+        This endpoint does not include the expanded canvas definition payload.
+
+        Use this endpoint to:
+        - Retrieve workflow metadata before a simple update
+        - Check workflow status and execution count
+        - Inspect timestamps, lock version, and execution activity
+
+        Use `GET /workflows/{workflow_id}/definition` when you need the editor payload with nodes, edges, embedded project data, and WhatsApp configs.
+      operationId: getWorkflow
+      responses:
+        "200":
+          description: Workflow details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    patch:
+      tags:
+        - Workflows
+      summary: Update workflow
+      description: |
+        Update workflow metadata or replace workflow definition collections.
+
+        Common updates:
+        - Change workflow name or description
+        - Update workflow definition nodes and edges
+        - Activate workflow by setting status to 'active'
+        - Archive workflow by setting status to 'archived'
+
+        Definition update semantics:
+        - Omit `definition` to update metadata only.
+        - Omit `definition.nodes` to leave nodes unchanged.
+        - Include `definition.nodes` only when sending the complete desired node set. Nodes omitted from that array are removed.
+        - Omit `definition.edges` to leave edges unchanged.
+        - Include `definition.edges` only when sending the complete desired edge set. Edges omitted from that array are removed.
+        - Use snake_case config keys in API payloads.
+
+        Successful responses contain workflow metadata, including the new `lock_version`. They do not include the expanded graph. Call `GET /workflows/{workflow_id}/definition` after updating when you need the saved nodes and edges.
+
+        You can update the definition of an active workflow. Changes take effect immediately for new executions; running executions continue with the snapshot they started with.
+      operationId: updateWorkflow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowUpdateRequest"
+      responses:
+        "200":
+          description: Workflow updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          description: Conflict — the supplied `lock_version` is stale. Refetch the workflow to get the current version and retry.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /workflows/{workflow_id}/definition:
+    parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Workflow identifier
+    get:
+      tags:
+        - Workflows
+      summary: Retrieve workflow definition
+      description: |
+        Get the editor-oriented workflow payload for a specific workflow.
+
+        This endpoint returns everything needed to load the canvas:
+        - Base workflow metadata
+        - `definition.nodes` built from `flow_steps`
+        - `definition.edges` built from `flow_edges`
+
+        Response details:
+        - `definition.nodes[].id` is the workflow step identifier, not the database ID
+        - `definition.edges[].id` is the persisted edge UUID
+        - `definition.nodes[].data.node_type` is the canonical backend node type
+        - `definition.nodes[].data.config` changes shape by node type
+        - Config fields are returned in snake_case
+        - Function and call-workflow references are returned as IDs in the Platform API; the Kapso CLI can export them as slugs for local source repos
+
+        Use this endpoint when building or syncing a visual workflow editor, exporting a workflow graph, or cloning an existing workflow definition.
+      operationId: getWorkflowDefinition
+      responses:
+        "200":
+          description: Workflow definition retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowWithDefinitionResponse"
+              example:
+                data:
+                  id: 2c2d03de-f8e5-4e9d-87fd-d168a8d04a6c
+                  name: Lead qualification
+                  description: Qualify inbound leads before handing off to sales
+                  status: draft
+                  lock_version: 3
+                  message_debounce_seconds: 1
+                  inbound_message_read_mode: read_with_typing
+                  created_at: 2026-03-10T14:05:22Z
+                  updated_at: 2026-03-12T09:44:18Z
+                  project_id: 7b7d09f1-4f2d-477c-bb1c-0fc8d1bb6d3e
+                  execution_count: 12
+                  last_executed_at: 2026-03-12T09:40:05Z
+                  definition:
+                    nodes:
+                      - id: start
+                        type: flow-node
+                        position:
+                          x: 120
+                          y: 80
+                        data:
+                          node_type: start
+                          config: {}
+                          display_name: Start
+                      - id: send_intro
+                        type: flow-node
+                        position:
+                          x: 380
+                          y: 80
+                        data:
+                          node_type: send_text
+                          config:
+                            whatsapp_config_id: ab11ff46-0f30-49e5-b5ef-a78662bc0ef1
+                            phone_number_id: "15551234567"
+                            message: Hi {{vars.first_name}}, thanks for contacting us.
+                            delay_seconds: 0
+                            provider_model_id: null
+                            provider_model_name: null
+                            ai_field_config: {}
+                            to_phone_number: null
+                          display_name: Send Text Message
+                      - id: wait_reply
+                        type: flow-node
+                        position:
+                          x: 660
+                          y: 80
+                        data:
+                          node_type: wait_for_response
+                          config:
+                            has_timeout: true
+                            timeout_seconds: 300
+                            save_response_to: latest_reply
+                          display_name: Wait for response
+                    edges:
+                      - id: 6952ed87-5016-444d-a145-7339c4d3c642
+                        source: start
+                        target: send_intro
+                        label: next
+                        type: default
+                        flow_condition_id: null
+                      - id: 0c2b6fc5-eb0c-41cc-8dcf-6aa4f5dd6ca1
+                        source: send_intro
+                        target: wait_reply
+                        label: next
+                        type: default
+                        flow_condition_id: null
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /workflows/{workflow_id}/variables:
+    parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Workflow identifier
+    get:
+      tags:
+        - Workflows
+      summary: Get workflow variables
+      description: |
+        Retrieve all variables available in a workflow, including both fixed system variables and variables discovered from execution history.
+
+        Returns two categories of variables:
+        - **Fixed variables**: Built-in system and context variables always available (flow_id, started_at, channel, phone_number, etc.)
+        - **Discovered variables**: User-defined variables observed during workflow executions, with sample values and usage statistics
+
+        Use this endpoint to:
+        - Understand what variables are available for use in workflow steps
+        - Review variable types and sample values for debugging
+        - Build autocomplete for variable references in workflow editors
+      operationId: getWorkflowVariables
+      responses:
+        "200":
+          description: Variables retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowVariablesResponse"
+              example:
+                data:
+                  fixed:
+                    system:
+                      system.flow_id:
+                        type: string
+                        description: Flow identifier
+                        always_available: true
+                      system.started_at:
+                        type: datetime
+                        description: Flow execution start time
+                        always_available: true
+                    context:
+                      context.channel:
+                        type: string
+                        description: Communication channel (api or whatsapp)
+                        always_available: false
+                      context.phone_number:
+                        type: string
+                        description: Contact phone number
+                        always_available: false
+                  discovered:
+                    system: []
+                    context: []
+                    vars:
+                      - path: vars.user_name
+                        name: user_name
+                        type: string
+                        sample_values:
+                          - Alice
+                          - Bob
+                        usage_count: 42
+                        last_seen_at: 2025-01-15T10:30:00Z
+                        reference: "{{vars.user_name}}"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /workflows/{workflow_id}/executions:
+    parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Workflow identifier
+    get:
+      tags:
+        - Workflows
+      summary: List workflow executions
+      description: |
+        Retrieve execution history for a workflow. Executions are returned in reverse chronological order (most recent first). Use query parameters to filter by status, time range, or cursor.
+
+        **Response**: Returns summary data (id, status, tracking_id, timestamps, workflow, current_step). Does not include execution_context or events. Use GET /workflow_executions/{id} to retrieve full execution details.
+
+        **Pagination**: Use `limit`, `after`, and `before`. Pagination cursors are returned in the `paging` object.
+
+        Common use cases:
+        - Monitor active executions for a workflow
+        - Review failed executions for debugging
+        - Audit execution history over time
+        - Find waiting executions that need user input
+      operationId: listWorkflowExecutions
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - running
+              - waiting
+              - ended
+              - failed
+              - handoff
+          description: Filter by execution status
+        - name: waiting_reason
+          in: query
+          schema:
+            type: string
+          description: Filter waiting executions by reason (e.g., 'wait_for_response', 'timeout')
+        - name: created_after
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Only return executions started on or after this timestamp
+        - name: created_before
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Only return executions started on or before this timestamp
+        - name: whatsapp_conversation_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by associated WhatsApp conversation
+        - name: limit
+          in: query
+          description: Maximum number of results per cursor-paginated page (default 20, max 100).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: before
+          in: query
+          description: Cursor for the previous page (Base64 encoded).
+          schema:
+            type: string
+        - name: after
+          in: query
+          description: Cursor for the next page (Base64 encoded).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Executions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowExecutionListResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    post:
+      tags:
+        - Workflows
+      summary: Start workflow execution
+      description: |
+        Start a new execution of a workflow asynchronously. The workflow will begin processing in the background.
+
+        You'll receive a 202 Accepted response with a tracking_id immediately. Use this tracking_id to:
+        - Poll GET /workflow_executions with tracking_id filter to check status
+        - Correlate execution events with your own systems
+
+        The execution will fail if:
+        - The workflow is not in 'active' status
+        - Both phone_number and recipient are missing, or recipient is not a valid BSUID or parent BSUID
+        - recipient is used with a sandbox WhatsApp number
+        - The workflow definition is malformed
+
+        Use cases:
+        - Start workflow from external trigger (API, webhook, scheduled job)
+        - Test workflow with specific initial variables
+        - Retry failed execution with same parameters
+
+        **Burst rate limit**: This endpoint has an additional per-workflow burst limiter on top of the general platform API rate limits.
+        The burst counter is scoped by API key and workflow ID and resets every second.
+        - `legacy` / `free`: 5 requests per second
+        - `pro`: 15 requests per second
+        - `enterprise` / `platform`: 30 requests per second
+
+        Successful responses include `X-Burst-RateLimit-Limit` and `X-Burst-RateLimit-Remaining` headers.
+        If the burst limit is exceeded, the API returns `429 Too Many Requests` with `Retry-After: 1`.
+      operationId: createWorkflowExecution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowExecutionCreateRequest"
+      responses:
+        "202":
+          description: Workflow execution queued successfully (processing in background)
+          headers:
+            X-Burst-RateLimit-Limit:
+              schema:
+                type: integer
+              description: Maximum workflow execution requests allowed per second for this workflow and API key
+            X-Burst-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining workflow execution requests in the current one-second window for this workflow and API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowExecutionCreateAcceptedResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          description: Workflow execution burst rate limit exceeded
+          headers:
+            X-Burst-RateLimit-Limit:
+              schema:
+                type: integer
+              description: Maximum workflow execution requests allowed per second for this workflow and API key
+            X-Burst-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining workflow execution requests in the current one-second window for this workflow and API key
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds to wait before retrying. This burst limiter returns `1`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Burst rate limit exceeded
+                message: Too many workflow execution requests in a short period. Try again in 1 second.
+  /workflow_executions/{execution_id}:
+    parameters:
+      - name: execution_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Execution identifier
+    get:
+      tags:
+        - Workflows
+      summary: Retrieve workflow execution
+      description: |
+        Get complete details for a workflow execution including current status, execution context, variables, and full event history.
+
+        **This is the only endpoint that returns the full execution_context** (vars, system, context, metadata) along with the complete event history.
+
+        Use this endpoint to:
+        - Monitor execution progress and current step
+        - Debug failed executions with full event log
+        - Review execution variables and context
+        - Check error details when status is 'failed'
+
+        The response includes:
+        - Current status and step
+        - Complete event chronology (step transitions, agent actions, variable updates)
+        - Full execution_context with standard structure (vars, system, context, metadata)
+        - Error details if execution failed
+      operationId: getWorkflowExecution
+      responses:
+        "200":
+          description: Execution details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowExecutionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    patch:
+      tags:
+        - Workflows
+      summary: Update workflow execution status
+      description: |
+        Manually update the status of a workflow execution. This is useful for programmatically controlling workflow lifecycle from external systems.
+
+        **Allowed status transitions:**
+        - `ended` - End the execution immediately
+        - `handoff` - Transfer execution to human agent
+        - `waiting` - Pause execution until resumed
+
+        **Use cases:**
+        - End workflows based on external events
+        - Transfer complex queries to human agents
+        - Implement custom timeout logic
+        - Coordinate workflows with external systems
+
+        Invalid transitions (e.g., transitioning from a terminal state) will return a 422 error with details about why the transition is not allowed.
+
+        **Response**: Returns full execution data including the updated status. Use GET /workflow_executions/{id} to retrieve execution context and event history.
+      operationId: updateWorkflowExecution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowExecutionUpdateRequest"
+      responses:
+        "200":
+          description: Execution status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowExecutionMinimalResponse"
+        "400":
+          description: Missing or invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          description: Invalid status transition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Invalid transition from ended to waiting
+  /workflow_executions/{execution_id}/events:
+    parameters:
+      - name: execution_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Execution identifier
+    get:
+      tags:
+        - Workflows
+      summary: List workflow execution events
+      description: |
+        Retrieve events for a workflow execution in reverse chronological order (most recent first).
+
+        Use `limit`, `after`, and `before` for cursor pagination. Cursors are returned in the `paging` object.
+      operationId: listWorkflowExecutionEvents
+      parameters:
+        - name: event_type
+          in: query
+          schema:
+            type: string
+          description: Filter by event type
+        - name: limit
+          in: query
+          description: Maximum number of results per cursor-paginated page (default 20, max 100).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: before
+          in: query
+          description: Cursor for the previous page (Base64 encoded).
+          schema:
+            type: string
+        - name: after
+          in: query
+          description: Cursor for the next page (Base64 encoded).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Events retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowEventListResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /workflow_executions/{execution_id}/resume:
+    parameters:
+      - name: execution_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Execution identifier
+    post:
+      tags:
+        - Workflows
+      summary: Resume waiting workflow execution
+      description: |
+        Resume a workflow execution that is in 'waiting' status. Workflows enter waiting status when they reach a wait_for_response step or are explicitly paused.
+
+        Send a message with:
+        - `kind`: Message type, defaults to "payload" if omitted
+        - `data`: The actual payload - can be a string for simple text responses (e.g., "yes", "no") or an object for structured data (e.g., button clicks, form submissions)
+
+        Optionally include variables to update the execution context:
+        - `variables`: Key-value pairs to merge into the execution context. These will be available in subsequent workflow steps as `{{var_name}}`. Existing variables with the same key will be overwritten.
+
+        After resuming, the workflow will continue processing from the waiting step with the provided message data and updated variables.
+
+        **Call workflow routing**: If the execution is waiting at a call workflow step, the input is routed to the child execution it started, following the chain down to the deepest waiting execution. Keep sending resumes to the original execution ID; the response reports where the input landed in `id`, echoes the requested ID in `requested_execution_id`, and includes `parent_flow_execution_id`.
+
+        **Response**: Returns minimal execution data (id, status, tracking_id, timestamps, workflow, current_step) plus the routing fields. Does not include execution_context or events. Use GET /workflow_executions/{id} to retrieve full execution details.
+      operationId: resumeWorkflowExecution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowExecutionResumeRequest"
+      responses:
+        "200":
+          description: Execution resumed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowExecutionResumeResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          description: |
+            Conflict — the execution could not be resumed right now. Either a resume request is already pending for this execution, or the execution is being processed by another request. Retry after a short delay.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: |
+            The target execution is not in `waiting` status, or the call workflow step was changed while its child execution was still active (`error: "Execution configuration changed"`). Restore the original called workflow before resuming.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: |
+            The resume request was accepted but could not be queued for processing. No resume is in flight and any submitted variables were rolled back. Retry the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /workflows/{workflow_id}/triggers:
+    parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Workflow identifier
+    get:
+      tags:
+        - Workflow Triggers
+      summary: List workflow triggers
+      description: |
+        Retrieve all triggers configured for a workflow. Triggers define when and how a workflow should automatically execute.
+
+        Use this endpoint to:
+        - Review configured triggers for a workflow
+        - Audit which phone numbers trigger this workflow
+        - Check trigger active status
+      operationId: listWorkflowTriggers
+      responses:
+        "200":
+          description: Triggers retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowTriggerListResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    post:
+      tags:
+        - Workflow Triggers
+      summary: Create workflow trigger
+      description: |
+        Create a new trigger for a workflow. Triggers define when the workflow should automatically execute.
+
+        Trigger types:
+        - `inbound_message`: Workflow starts when WhatsApp messages arrive at specified phone number (requires phone_number_id)
+        - `api_call`: Workflow starts only via POST /workflows/{id}/executions (no phone_number_id needed)
+
+        After creating a trigger:
+        - For inbound_message: Messages to the phone_number_id will start workflow executions
+        - For api_call: Workflow can only be started via API endpoint
+
+        Note: A workflow can have multiple triggers (e.g., multiple phone numbers, or both inbound_message and api_call).
+      operationId: createWorkflowTrigger
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowTriggerCreateRequest"
+      responses:
+        "201":
+          description: Trigger created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowTriggerResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    put:
+      tags:
+        - Workflow Triggers
+      summary: Replace workflow triggers
+      description: |
+        Atomically replace the full set of triggers for a workflow. All existing triggers are deleted and the supplied set is created in a single transaction — if any trigger in the request is invalid, no changes are applied.
+
+        Use this when syncing trigger configuration from an external source of truth. For per-trigger CRUD, use POST/PATCH/DELETE instead.
+      operationId: replaceWorkflowTriggers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowTriggerBulkReplaceRequest"
+      responses:
+        "200":
+          description: Triggers replaced successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowTriggerListResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /triggers/{trigger_id}:
+    parameters:
+      - name: trigger_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Trigger identifier
+    patch:
+      tags:
+        - Workflow Triggers
+      summary: Update workflow trigger
+      description: |
+        Update a workflow trigger. Currently only the 'active' status can be modified.
+
+        Use this to:
+        - Temporarily disable a trigger without deleting it (set active=false)
+        - Re-enable a previously disabled trigger (set active=true)
+
+        Note: To change trigger type or phone_number_id, delete the trigger and create a new one.
+      operationId: updateWorkflowTrigger
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowTriggerUpdateRequest"
+      responses:
+        "200":
+          description: Trigger updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowTriggerResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags:
+        - Workflow Triggers
+      summary: Delete workflow trigger
+      description: |
+        Permanently delete a workflow trigger. This will stop the workflow from executing automatically based on this trigger.
+
+        After deletion:
+        - For inbound_message triggers: Messages to the phone_number_id will no longer start this workflow
+        - For api_call triggers: The workflow can still be started manually via POST /workflows/{id}/executions
+
+        This operation cannot be undone. If you need to temporarily disable a trigger, use PATCH to set active=false instead.
+      operationId: deleteWorkflowTrigger
+      responses:
+        "204":
+          description: Trigger deleted successfully (no content returned)
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /functions:
+    get:
+      tags:
+        - Functions
+      summary: List functions
+      description: |
+        Retrieve all serverless functions for your project. Functions are custom JavaScript code that runs on-demand in response to API invocations.
+
+        Use this endpoint to:
+        - List all configured functions
+        - Review function deployment status
+        - Audit function creation and updates
+      operationId: listFunctions
+      responses:
+        "200":
+          description: Functions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FunctionListResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+    post:
+      tags:
+        - Functions
+      summary: Create function
+      description: |
+        Create a new serverless function in draft status. The function will be saved but not deployed to the runtime platform.
+
+        After creating a function:
+        1. Review and test the code locally
+        2. Deploy using POST /functions/{id}/deploy
+        3. Invoke using POST /functions/{id}/invoke
+
+        Choose function_type based on your deployment requirements:
+        - `cloudflare_worker`: Fast global edge deployment with standard JavaScript
+        - `supabase_function`: Deno runtime with built-in Supabase client
+
+        The function slug will be auto-generated from the name if not provided (lowercase with hyphens).
+      operationId: createFunction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FunctionCreateRequest"
+      responses:
+        "201":
+          description: Function created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FunctionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /functions/{function_id}:
+    parameters:
+      - name: function_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Function identifier
+    get:
+      tags:
+        - Functions
+      summary: Retrieve function
+      description: |
+        Get complete details for a serverless function including code, configuration, deployment status, and computed URLs.
+
+        Use this endpoint to:
+        - Review function code before updating
+        - Check deployment status and version
+        - Get endpoint URL for external invocation
+        - Retrieve runtime configuration
+      operationId: getFunction
+      responses:
+        "200":
+          description: Function details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FunctionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    patch:
+      tags:
+        - Functions
+      summary: Update function
+      description: |
+        Update function metadata or code. Supports partial updates - only include fields you want to change.
+
+        Common updates:
+        - Update function code (requires redeployment to take effect)
+        - Change function name or description
+        - Update runtime configuration
+        - Modify function slug
+
+        Important: Code updates are saved immediately but do NOT automatically deploy. After updating code, you must call POST /functions/{id}/deploy for changes to take effect in production.
+      operationId: updateFunction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FunctionUpdateRequest"
+      responses:
+        "200":
+          description: Function updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FunctionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          description: |
+            Conflict — the supplied `lock_version` is stale. Refetch the function to get the current version and retry.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags:
+        - Functions
+      summary: Delete function
+      description: |
+        Permanently delete a serverless function. This will also remove the function from the runtime platform and delete all associated secrets.
+
+        After deletion:
+        - Function will be removed from Cloudflare Workers or Supabase Edge Functions
+        - All function secrets are automatically deleted
+        - Function endpoint URL will return 404
+        - Function invocation records are preserved for audit history
+
+        This operation cannot be undone. Make sure to backup function code if needed before deletion.
+      operationId: deleteFunction
+      responses:
+        "204":
+          description: Function deleted successfully (no content returned)
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /functions/{function_id}/deploy:
+    parameters:
+      - name: function_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Function identifier
+    post:
+      tags:
+        - Functions
+      summary: Deploy function
+      description: |
+        Deploy a function to the serverless runtime platform asynchronously. Deployment happens in the background and may take 10-60 seconds.
+
+        You'll receive a 202 Accepted response immediately. To check deployment status:
+        1. Poll GET /functions/{id} to monitor status field
+        2. Wait for status to change from 'draft' to 'deployed' (success) or 'error' (failure)
+        3. Check last_deployed_at timestamp to confirm deployment completion
+
+        Deployment process:
+        - For `cloudflare_worker`: Code is deployed to Cloudflare's global edge network
+        - For `supabase_function`: Code is deployed to Supabase Edge Functions with Deno runtime
+
+        Deployment will fail (status='error') if:
+        - Function code has syntax errors
+        - Function type is 'supabase_function' but no Supabase project is configured
+        - Runtime platform API is unavailable
+
+        After successful deployment, the function is immediately available for invocation via POST /functions/{id}/invoke.
+      operationId: deployFunction
+      responses:
+        "202":
+          description: Deployment initiated successfully (processing in background)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FunctionDeployResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          description: Function cannot be deployed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Supabase project required for Supabase functions
+  /functions/{function_id}/invoke:
+    parameters:
+      - name: function_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Function identifier
+    post:
+      tags:
+        - Functions
+      summary: Invoke function
+      description: |
+        Execute a deployed serverless function with a custom JSON payload. The request body is forwarded directly to your function code.
+
+        Request payload structure is completely flexible - send any valid JSON that your function expects. Your function receives the payload as the request body and can parse it however needed.
+
+        Successful response behavior depends on `invoke_response_mode`:
+        - New functions default to `passthrough`, so Kapso forwards the function response body, success status code, and `Content-Type` directly
+        - Legacy wrapped functions can keep `wrapped`, which preserves the legacy API shape and returns successful JSON results under `data`
+
+        The function must be in 'deployed' status to be invoked. If the function is in 'draft' or 'error' status, the request will fail with 422 validation error.
+
+        Authentication:
+        - Private functions require `X-API-Key`
+        - Public Cloudflare functions (`public_endpoint=true`) can be invoked without an API key
+        - Private and unknown functions both return `404` from this route
+
+        Execution tracking:
+        - All invocations are tracked with timing and request/response data
+        - Failed invocations return an `invocation_id` for debugging
+        - Check function invocation history via GET /functions/{id} (extended view)
+
+        Error handling:
+        - Function execution errors are captured and returned with details
+        - Errors are truncated to 512 characters for storage
+        - Original error context is preserved in invocation record
+      operationId: invokeFunction
+      security:
+        - ApiKeyAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FunctionInvokeRequest"
+            examples:
+              shipping_calculation:
+                summary: Calculate shipping cost
+                value:
+                  weight: 5.5
+                  distance: 120
+                  service: express
+              data_transformation:
+                summary: Transform user data
+                value:
+                  user_id: usr_123
+                  fields:
+                    - email
+                    - name
+                    - phone
+                  format: csv
+      responses:
+        "200":
+          description: |
+            Function executed successfully. `wrapped` functions return successful JSON under `data`.
+            `passthrough` functions may also return other 2xx status codes and non-JSON content types depending on the function response.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/FunctionInvokeResponse"
+                  - $ref: "#/components/schemas/FunctionInvokeWrappedResponse"
+              examples:
+                shipping_result:
+                  summary: Passthrough JSON result
+                  value:
+                    cost: 24.75
+                    currency: USD
+                    estimated_days: 2
+                wrapped_shipping_result:
+                  summary: Wrapped JSON result
+                  value:
+                    data:
+                      cost: 24.75
+                      currency: USD
+                      estimated_days: 2
+            text/plain:
+              schema:
+                type: string
+              example: accepted
+        "400":
+          description: Invalid JSON in request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Invalid JSON in request
+        "404":
+          description: Function not found, or private function is not accessible with the provided API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Function not found
+        "422":
+          description: Function is not deployed or validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Function is not deployed
+        "500":
+          description: Function execution failed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+                  detail:
+                    type: string
+                    description: Detailed error information from function execution (if available)
+                  invocation_id:
+                    type: string
+                    format: uuid
+                    description: Invocation record ID for debugging
+              example:
+                error: Function execution failed
+                detail: "ReferenceError: calculateShipping is not defined"
+                invocation_id: 550e8400-e29b-41d4-a716-446655440000
+  /functions/{function_id}/secrets:
+    parameters:
+      - name: function_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Function identifier
+    get:
+      tags:
+        - Functions
+      summary: List function secrets
+      description: |
+        Retrieve all secret names configured for this function. Secret values are NEVER included in list responses for security.
+
+        Secrets are injected as environment variables when your function executes. Use this endpoint to:
+        - Audit which secrets are configured
+        - Verify secret names before creating new ones
+        - Check secret types (text, json, inherited)
+
+        Important: If the function is not deployed, this endpoint returns an empty array. Secrets can only be managed for deployed functions.
+
+        Secret values are only returned once when creating a secret via POST /functions/{id}/secrets. After creation, values cannot be retrieved - only the secret name and type are visible.
+      operationId: listFunctionSecrets
+      responses:
+        "200":
+          description: Secrets retrieved successfully (values not included)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FunctionSecretListResponse"
+              example:
+                data:
+                  - name: STRIPE_API_KEY
+                    type: text
+                  - name: DATABASE_CONFIG
+                    type: json
+                  - name: API_ENDPOINT
+                    type: inherited
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "502":
+          description: Error communicating with Cloudflare API
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Failed to retrieve secrets from Cloudflare
+    post:
+      tags:
+        - Functions
+      summary: Create function secret
+      description: |
+        Create a secret for this function. Secrets are injected as environment variables when your function executes.
+
+        Use secrets to store sensitive data without hardcoding in function code:
+        - API keys (Stripe, OpenAI, Twilio, etc.)
+        - External service connection strings
+        - OAuth credentials
+        - Service account tokens
+
+        Requirements:
+        - Function must be in 'deployed' status (422 if not)
+        - Secret name must be uppercase alphanumeric with underscores (e.g., STRIPE_API_KEY)
+        - Secret name must be unique within the function
+
+        Secret types are automatically detected:
+        - String values → text type
+        - Object/array values → json type
+
+        Important: The secret value is only returned in the creation response. It cannot be retrieved later. Store the value securely after creation if needed.
+
+        After creating a secret, it's immediately available in your function as an environment variable with the specified name.
+      operationId: createFunctionSecret
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FunctionSecretCreateRequest"
+            examples:
+              api_key:
+                summary: API key secret
+                value:
+                  secret:
+                    name: STRIPE_API_KEY
+                    value: sk_test_abc123xyz
+              json_config:
+                summary: JSON configuration secret
+                value:
+                  secret:
+                    name: DATABASE_CONFIG
+                    value:
+                      host: db.example.com
+                      port: 5432
+                      database: production
+      responses:
+        "201":
+          description: Secret created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimpleMessageResponse"
+              example:
+                message: Secret created successfully
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          description: Validation error or function not deployed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                not_deployed:
+                  summary: Function not deployed
+                  value:
+                    error: Function must be deployed before creating secrets
+                invalid_name:
+                  summary: Invalid secret name format
+                  value:
+                    error: Secret name must be uppercase alphanumeric with underscores
+        "502":
+          description: Error communicating with Cloudflare API
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Failed to create secret in Cloudflare
+  /functions/{function_id}/secrets/{secret_name}:
+    parameters:
+      - name: function_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Function identifier
+      - name: secret_name
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Z0-9_]+$
+        description: Secret name (uppercase alphanumeric with underscores)
+        example: STRIPE_API_KEY
+    delete:
+      tags:
+        - Functions
+      summary: Delete function secret
+      description: |
+        Permanently delete a secret from this function. The secret will be removed from the runtime environment and will no longer be available as an environment variable.
+
+        Requirements:
+        - Function must be in 'deployed' status (422 if not)
+        - Secret must exist (404 if not found)
+
+        After deletion:
+        - Secret is immediately removed from function runtime environment
+        - Function can no longer access the secret value
+        - Any function invocations referencing the deleted secret will fail
+
+        This operation cannot be undone. Make sure the secret is no longer needed before deletion. If the function code still references the deleted secret, invocations may fail with undefined variable errors.
+      operationId: deleteFunctionSecret
+      responses:
+        "204":
+          description: Secret deleted successfully (no content returned)
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          description: Function not deployed or validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Function must be deployed to manage secrets
+        "502":
+          description: Error communicating with Cloudflare API
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Failed to delete secret from Cloudflare
+  /functions/{function_id}/invocations:
+    parameters:
+      - name: function_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Function identifier
+    get:
+      tags:
+        - Functions
+      summary: List function invocations
+      description: |
+        Retrieve recent invocation history for a function, including console logs captured during execution.
+
+        Returns the most recent invocations (up to 20 by default) with:
+        - Request/response payloads
+        - Status codes and execution duration
+        - Console logs (info, warn, error messages)
+        - Error details for failed invocations
+
+        Use the `status` parameter to filter by success or failure.
+      operationId: listFunctionInvocations
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - success
+              - failed
+          description: |
+            Filter by invocation status:
+            - `success`: Status codes 200-299
+            - `failed`: Status codes outside 200-299
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+          description: Maximum number of invocations to return (max 20)
+      responses:
+        "200":
+          description: Invocations retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FunctionInvocationsResponse"
+              example:
+                data:
+                  function_id: 550e8400-e29b-41d4-a716-446655440000
+                  function_name: calculate-shipping
+                  invocations:
+                    - id: 660e8400-e29b-41d4-a716-446655440001
+                      status_code: 200
+                      duration_ms: 45
+                      request_body:
+                        weight: 5.5
+                        distance: 120
+                      response_body:
+                        cost: 24.75
+                        currency: USD
+                      error_message: null
+                      created_at: 2025-01-15T10:30:00Z
+                      console_logs:
+                        - level: info
+                          message: Calculating shipping for weight 5.5
+                          logged_at: 2025-01-15T10:30:00Z
+                    - id: 660e8400-e29b-41d4-a716-446655440002
+                      status_code: 500
+                      duration_ms: 12
+                      request_body:
+                        weight: -1
+                      response_body: null
+                      error_message: Invalid weight value
+                      created_at: 2025-01-15T10:25:00Z
+                      console_logs:
+                        - level: error
+                          message: "Invalid weight: -1"
+                          logged_at: 2025-01-15T10:25:00Z
+                          stack: |-
+                            Error: Invalid weight value
+                                at validateWeight...
+                  total: 2
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /whatsapp/conversations/{conversation_id}/flow_executions:
+    parameters:
+      - name: conversation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: WhatsApp conversation identifier
+    get:
+      tags:
+        - WhatsApp Conversations
+      summary: List conversation workflow executions
+      description: |
+        Retrieve workflow executions associated with a WhatsApp conversation. Executions are returned in reverse chronological order (most recent first).
+
+        Use this endpoint to map a conversation to its workflow executions and track automation history for a specific conversation.
+
+        **Response**: Returns summary data (id, status, tracking_id, timestamps, workflow, current_step). Does not include execution_context or events. Use GET /workflow_executions/{id} to retrieve full execution details.
+
+        **Pagination**: Use `limit`, `after`, and `before`. Pagination cursors are returned in the `paging` object.
+      operationId: listConversationFlowExecutions
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - running
+              - waiting
+              - ended
+              - failed
+              - handoff
+          description: Filter by execution status
+        - name: limit
+          in: query
+          description: Maximum number of results per cursor-paginated page (default 20, max 100).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: before
+          in: query
+          description: Cursor for the previous page (Base64 encoded).
+          schema:
+            type: string
+        - name: after
+          in: query
+          description: Cursor for the next page (Base64 encoded).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Executions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowExecutionListResponse"
+              example:
+                data:
+                  - id: 550e8400-e29b-41d4-a716-446655440000
+                    status: running
+                    tracking_id: 8b1c9d2e-3f4a-5b6c-7d8e-9f0a1b2c3d4e
+                    whatsapp_conversation_id: 8c9c7a6b-5d4e-3f2a-1b0c-9d8e7f6a5b4c
+                    started_at: 2025-12-05T17:20:00Z
+                    last_event_at: 2025-12-05T17:25:00Z
+                    ended_at: null
+                    workflow:
+                      id: flow_789
+                      name: Order Support
+                      status: active
+                    current_step:
+                      identifier: wait_response
+                      stepable_type: FlowWaitStep
+                paging:
+                  cursors:
+                    before: eyJ2YWx1ZXMiOlsiMjAyNi0wNS0xNVQxMzowNTowMC4wMDAwMDBaIiwiNTUwZTg0MDAtZTI5Yi00MWQ0LWE3MTYtNDQ2NjU1NDQwMDAwIl0sImNvbHVtbnMiOlsiY3JlYXRlZF9hdCIsImlkIl19
+                    after: eyJ2YWx1ZXMiOlsiMjAyNi0wNS0xNVQxMjowNTowMC4wMDAwMDBaIiwiNTUwZTg0MDAtZTI5Yi00MWQ0LWE3MTYtNDQ2NjU1NDQwMDAwIl0sImNvbHVtbnMiOlsiY3JlYXRlZF9hdCIsImlkIl19
+                  next: null
+                  previous: null
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          description: Conversation not found or doesn't belong to project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Conversation not found

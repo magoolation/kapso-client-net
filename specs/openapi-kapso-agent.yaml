@@ -1,0 +1,790 @@
+openapi: 3.1.0
+info:
+  title: Kapso Agent API
+  version: 0.1.0
+  description: |
+    Trigger runs in built-in modes with the API trigger enabled or custom modes with the `api` surface enabled.
+    Inspect sessions, control run lifecycles, and handle approvals programmatically.
+servers:
+  - url: https://api.kapso.ai/platform/v1
+    description: Production
+security:
+  - ApiKeyAuth: []
+tags:
+  - name: Agent Modes
+    description: Discover the agent modes and which ones accept API runs
+  - name: Agent Sessions
+    description: List API sessions and inspect their runs
+  - name: Agent Runs
+    description: Create, poll, and control Kapso Agent runs
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  parameters:
+    LegacyPage:
+      name: page
+      in: query
+      deprecated: true
+      description: Page number for legacy offset pagination. Use cursor pagination for new integrations.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 1
+    LegacyPerPage:
+      name: per_page
+      in: query
+      description: Number of results for legacy offset pagination.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    CursorLimit:
+      name: limit
+      in: query
+      description: Maximum number of results for cursor pagination.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    CursorBefore:
+      name: before
+      in: query
+      description: Cursor for the previous page.
+      schema:
+        type: string
+    CursorAfter:
+      name: after
+      in: query
+      description: Cursor for the next page.
+      schema:
+        type: string
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+    Mode:
+      type: object
+      properties:
+        mode:
+          type: string
+          description: Mode slug used to trigger runs
+          examples: ["api"]
+        kind:
+          type: string
+          enum: [builtin, custom]
+        enabled:
+          type: boolean
+        archived:
+          type: boolean
+        name:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+        dispatch_paused:
+          type: boolean
+        capabilities:
+          type: array
+          items:
+            type: string
+        capability_assignments:
+          type: array
+          items:
+            type: object
+        provider_model_id:
+          type:
+            - string
+            - "null"
+        model:
+          type:
+            - string
+            - "null"
+          examples: ["gpt-5.5"]
+        reasoning_effort:
+          type:
+            - string
+            - "null"
+          examples: ["medium"]
+        available_invocations:
+          type: array
+          description: Surfaces where the mode can be invoked
+          items:
+            type: string
+            enum: [ui, api, slack]
+        instructions:
+          type:
+            - string
+            - "null"
+          description: Custom modes only
+        sandbox_enabled:
+          type: boolean
+          description: Custom modes only
+        sandbox_execution:
+          type:
+            - string
+            - "null"
+          description: Custom modes only
+        sandbox_setup_command:
+          type:
+            - string
+            - "null"
+          description: Custom modes only
+        sandbox_network_mode:
+          type:
+            - string
+            - "null"
+          description: Custom modes only
+        sandbox_allowed_outbound_hosts:
+          type:
+            - array
+            - "null"
+          items:
+            type: string
+          description: Custom modes only
+        approval_policy:
+          type:
+            - object
+            - "null"
+          description: Custom modes only
+    PaginationCursor:
+      type: object
+      properties:
+        before:
+          type:
+            - string
+            - "null"
+          description: Cursor for the previous page
+        after:
+          type:
+            - string
+            - "null"
+          description: Cursor for the next page
+    Paging:
+      type: object
+      properties:
+        cursors:
+          $ref: "#/components/schemas/PaginationCursor"
+        next:
+          type:
+            - string
+            - "null"
+          description: Cursor for the next page
+        previous:
+          type:
+            - string
+            - "null"
+          description: Cursor for the previous page
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        per_page:
+          type: integer
+          minimum: 1
+        total_pages:
+          type: integer
+          minimum: 0
+        total_count:
+          type: integer
+          minimum: 0
+        has_next:
+          type: boolean
+        total_count_estimated:
+          type: boolean
+          description: The total is an estimate for bounded offset pagination
+    PaginationErrorResponse:
+      type: object
+      description: Invalid cursor, limit, or legacy offset window
+      properties:
+        error:
+          type: string
+          description: Present for invalid cursor parameters
+        message:
+          type: string
+          description: Present when the legacy offset window exceeds its limit
+        detail:
+          type: string
+          description: Instructions for switching to cursor pagination
+    RunStatus:
+      type: string
+      enum:
+        - queued
+        - running
+        - paused
+        - waiting_for_approval
+        - completed
+        - failed
+        - cancelled
+    PendingApproval:
+      type:
+        - object
+        - "null"
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          examples: ["pending"]
+        tool_name:
+          type: string
+        parameters:
+          type: object
+          description: Sanitized tool parameters
+        created_at:
+          type: string
+          format: date-time
+    RunResult:
+      type:
+        - object
+        - "null"
+      description: Present when the run completed
+      properties:
+        type:
+          type: string
+          enum: [message, finding_investigation]
+        message_id:
+          type: string
+          format: uuid
+          description: Present when type is message
+        content:
+          type: string
+          description: Present when type is message
+        data:
+          type: object
+          description: Present when type is finding_investigation
+    Run:
+      type: object
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        conversation_id:
+          type: string
+          format: uuid
+          description: The agent session this run belongs to
+        status:
+          $ref: "#/components/schemas/RunStatus"
+        mode:
+          type: string
+          examples: ["api"]
+        title:
+          type:
+            - string
+            - "null"
+        kind:
+          type: string
+          enum: [ask, continue]
+        prompt:
+          type:
+            - string
+            - "null"
+        provider_model:
+          type:
+            - string
+            - "null"
+          examples: ["gpt-5.5"]
+        reasoning_effort:
+          type:
+            - string
+            - "null"
+          examples: ["medium"]
+        error_message:
+          type:
+            - string
+            - "null"
+        ai_cost_microdollars:
+          type: integer
+          description: AI cost of the run in microdollars
+        result:
+          $ref: "#/components/schemas/RunResult"
+        pending_approval:
+          $ref: "#/components/schemas/PendingApproval"
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        paused_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        finished_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        status_url:
+          type: string
+          description: Path to poll this run
+        finding:
+          type: object
+          description: Present for a finding investigation run
+          properties:
+            id:
+              type: string
+              format: uuid
+            investigation_id:
+              type: string
+              format: uuid
+    SessionRun:
+      allOf:
+        - $ref: "#/components/schemas/Run"
+        - type: object
+          properties:
+            result:
+              type: "null"
+              description: Session history omits the result. Retrieve the run to get its result.
+    SessionLatestRun:
+      type:
+        - object
+        - "null"
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/RunStatus"
+        created_at:
+          type: string
+          format: date-time
+    AgentSession:
+      type: object
+      properties:
+        conversation_id:
+          type: string
+          format: uuid
+          description: Session identifier used to continue a conversation
+        title:
+          type:
+            - string
+            - "null"
+        status:
+          type: string
+          enum: [active, paused, terminated]
+        created_at:
+          type: string
+          format: date-time
+        run_count:
+          type: integer
+          minimum: 0
+          description: Total API runs in the session
+        latest_run:
+          $ref: "#/components/schemas/SessionLatestRun"
+        last_activity_at:
+          type: string
+          format: date-time
+    AgentSessionListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentSession"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+        paging:
+          $ref: "#/components/schemas/Paging"
+    AgentSessionDetail:
+      type: object
+      properties:
+        session:
+          $ref: "#/components/schemas/AgentSession"
+        runs:
+          type: array
+          items:
+            $ref: "#/components/schemas/SessionRun"
+    AgentSessionDetailResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/AgentSessionDetail"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+        paging:
+          $ref: "#/components/schemas/Paging"
+    CreateRunRequest:
+      type: object
+      required:
+        - mode
+        - input
+      properties:
+        mode:
+          type: string
+          description: Slug of a mode whose `available_invocations` includes `api`
+          examples: ["api"]
+        conversation_id:
+          type: string
+          format: uuid
+          description: Continue an existing session created with the same API key and mode
+        input:
+          type: object
+          description: Mode input. The generic trigger requires `prompt`; `findings-investigator` requires `finding_id`.
+          properties:
+            prompt:
+              type: string
+            finding_id:
+              type: string
+              format: uuid
+        metadata:
+          type: object
+          description: Arbitrary data stored on the run and echoed in webhooks
+    RunResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Run"
+  responses:
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found or not accessible with this API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Invalid state transition
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    SessionNotFound:
+      description: Session not found or not accessible with this API key
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                examples: ["record_not_found"]
+              detail:
+                type: string
+                examples: ["Session not found."]
+paths:
+  /kapso-agent/modes:
+    get:
+      tags: [Agent Modes]
+      summary: List modes
+      description: Every mode. Only modes whose `available_invocations` includes `api` accept runs.
+      operationId: listAgentModes
+      responses:
+        "200":
+          description: Modes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Mode"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /kapso-agent/modes/{mode}:
+    get:
+      tags: [Agent Modes]
+      summary: Get a mode
+      operationId: getAgentMode
+      parameters:
+        - name: mode
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Built-in or custom mode slug
+      responses:
+        "200":
+          description: Mode
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Mode"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /kapso-agent/modes/{mode}/sessions:
+    get:
+      tags: [Agent Sessions]
+      summary: List mode sessions
+      description: |
+        Lists sessions for a built-in or custom mode, ordered by most recent activity.
+        Results include only API runs created with the authenticating API key.
+
+        Use `limit`, `after`, and `before` for cursor pagination. Without these parameters, the endpoint returns legacy offset pagination.
+      operationId: listAgentModeSessions
+      parameters:
+        - name: mode
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Built-in or custom mode slug
+        - $ref: "#/components/parameters/LegacyPage"
+        - $ref: "#/components/parameters/LegacyPerPage"
+        - $ref: "#/components/parameters/CursorLimit"
+        - $ref: "#/components/parameters/CursorBefore"
+        - $ref: "#/components/parameters/CursorAfter"
+      responses:
+        "200":
+          description: Sessions ordered by most recent activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSessionListResponse"
+        "400":
+          description: Invalid pagination parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginationErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          description: Unknown or inaccessible mode
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /kapso-agent/sessions/{id}:
+    get:
+      tags: [Agent Sessions]
+      summary: Get a session
+      description: |
+        Returns a session and its API runs, ordered from newest to oldest.
+        The session must belong to the authenticating API key.
+
+        Pagination parameters apply to the `runs` array. Use `limit`, `after`, and `before` for cursor pagination.
+      operationId: getAgentSession
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Session `conversation_id`
+        - $ref: "#/components/parameters/LegacyPage"
+        - $ref: "#/components/parameters/LegacyPerPage"
+        - $ref: "#/components/parameters/CursorLimit"
+        - $ref: "#/components/parameters/CursorBefore"
+        - $ref: "#/components/parameters/CursorAfter"
+      responses:
+        "200":
+          description: Session and runs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSessionDetailResponse"
+        "400":
+          description: Invalid pagination parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginationErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/SessionNotFound"
+  /kapso-agent/runs:
+    post:
+      tags: [Agent Runs]
+      summary: Create a run
+      description: Triggers an agent run asynchronously. Poll the returned `status_url` or subscribe to `kapso_agent.run.*` project webhooks.
+      operationId: createAgentRun
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRunRequest"
+      responses:
+        "202":
+          description: Run accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: Invalid input for the mode's trigger
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /kapso-agent/runs/{id}:
+    get:
+      tags: [Agent Runs]
+      summary: Get a run
+      description: Only runs created via the API with the same API key are retrievable.
+      operationId: getAgentRun
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /kapso-agent/runs/{id}/pause:
+    post:
+      tags: [Agent Runs]
+      summary: Pause a run
+      operationId: pauseAgentRun
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Run paused
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /kapso-agent/runs/{id}/resume:
+    post:
+      tags: [Agent Runs]
+      summary: Resume a run
+      operationId: resumeAgentRun
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Run resumed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /kapso-agent/runs/{id}/cancel:
+    post:
+      tags: [Agent Runs]
+      summary: Cancel a run
+      operationId: cancelAgentRun
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Run cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /kapso-agent/runs/{id}/approvals/{approval_id}/approve:
+    post:
+      tags: [Agent Runs]
+      summary: Approve a tool call
+      operationId: approveAgentRunTool
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: approval_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /kapso-agent/runs/{id}/approvals/{approval_id}/reject:
+    post:
+      tags: [Agent Runs]
+      summary: Reject a tool call
+      operationId: rejectAgentRunTool
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: approval_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"

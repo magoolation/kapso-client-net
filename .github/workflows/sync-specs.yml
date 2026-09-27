@@ -1,0 +1,52 @@
+name: Sync specs
+
+on:
+  schedule:
+    # Weekly. Kapso's contract does not move daily, and a PR nobody reads is noise.
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  sync:
+    name: Refresh and regenerate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Download the current descriptions
+        run: pwsh eng/Sync-Specs.ps1
+
+      - name: Regenerate the clients
+        run: pwsh eng/Generate-Clients.ps1
+
+      - name: Build and test against the new contract
+        run: |
+          dotnet build -c Release
+          dotnet test --project tests/Kapso.Tests -c Release --no-build
+
+      # The diff is the point: it is where a breaking change in Kapso's API
+      # becomes visible before it reaches anyone's application.
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/sync-specs
+          title: 'chore: sync Kapso OpenAPI descriptions'
+          commit-message: 'chore: sync Kapso OpenAPI descriptions and regenerate clients'
+          labels: dependencies
+          body: |
+            Automated refresh of `specs/` and regeneration of `src/Kapso/Generated`.
+
+            Review the generated diff for breaking changes before merging:
+            a removed operation or a changed required field is a breaking change
+            for consumers even though the build passes.

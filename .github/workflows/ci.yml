@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # MinVer derives the version from tags, and a shallow clone has none.
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - run: dotnet restore
+
+      # Release turns warnings into errors, which is the gate that matters.
+      - run: dotnet build -c Release --no-restore
+
+      - run: dotnet test --project tests/Kapso.Tests -c Release --no-build
+
+      - run: dotnet pack src/Kapso -c Release --no-build -o artifacts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: artifacts/*
+
+  generated-code:
+    name: Generated code is current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # Regenerating from the committed descriptions must reproduce exactly what
+      # is committed. If it does not, someone hand-edited generated code or
+      # forgot to regenerate after a spec change.
+      - run: pwsh eng/Generate-Clients.ps1
+
+      - name: Fail if the generated client differs
+        run: |
+          if ! git diff --exit-code --stat -- src/Kapso/Generated; then
+            echo "::error::src/Kapso/Generated is out of date. Run: pwsh eng/Generate-Clients.ps1"
+            git diff -- src/Kapso/Generated | head -200
+            exit 1
+          fi
+
+  aot:
+    name: Native AOT
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Install the native toolchain
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      # Turns the AOT and trimming claims into something checked. The sample
+      # touches every hand-written surface, and its project treats any trim or
+      # AOT warning as an error.
+      - run: dotnet publish samples/Kapso.Samples.Aot -c Release -r linux-x64
+
+      - name: Run the native binary
+        run: ./samples/Kapso.Samples.Aot/bin/Release/net10.0/linux-x64/publish/Kapso.Samples.Aot
+
+  spec-drift:
+    name: Upstream specs unchanged
+    runs-on: ubuntu-latest
+    # Informational: Kapso changing its API should not fail a pull request that
+    # has nothing to do with it. The scheduled sync-specs workflow opens a PR.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - run: pwsh eng/Sync-Specs.ps1 -Check

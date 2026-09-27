@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Exists to prove the AOT claim. Publishing this with PublishAot=true is what
+       turns IsAotCompatible from an assertion into a check; CI runs it. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Kapso.Samples.Aot</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Any trim or AOT warning from the library must fail this build. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Kapso/Kapso.csproj" />
+  </ItemGroup>
+
+</Project>

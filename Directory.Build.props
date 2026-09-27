@@ -1,0 +1,63 @@
+<Project>
+
+  <!-- ==========================================================================
+       Repo-wide defaults. Project-specific settings belong in the .csproj.
+       Evaluated BEFORE the SDK props and before each project file, so anything
+       here can be overridden by an individual project.
+       ========================================================================== -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <!-- Correctness gates. Warnings are errors everywhere except local debug
+       builds, where they stay warnings so an in-progress edit still runs. -->
+  <PropertyGroup>
+    <AnalysisLevel>latest-Recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <TreatWarningsAsErrors Condition="'$(Configuration)' == 'Release'">true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors></WarningsNotAsErrors>
+  </PropertyGroup>
+
+  <!-- Reproducibility: identical inputs must produce identical bytes, so a
+       consumer can verify a published package against this source. -->
+  <PropertyGroup>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+    <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+  </PropertyGroup>
+
+  <!-- Shared package identity. Per-package values live in the .csproj. -->
+  <PropertyGroup>
+    <Authors>Alexandre Costa</Authors>
+    <Product>Kapso .NET SDK</Product>
+    <Copyright>Copyright (c) Alexandre Costa</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/magoolation/kapso-client-net</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/magoolation/kapso-client-net</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>kapso;whatsapp;whatsapp-cloud-api;messaging;sdk;kiota</PackageTags>
+  </PropertyGroup>
+
+  <!-- SourceLink ships in the SDK; these switches turn it on. -->
+  <PropertyGroup>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <!-- Version comes from git tags (MinVer). An untagged build is a prerelease,
+       so nothing can accidentally publish as a stable version. -->
+  <PropertyGroup>
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+    <MinVerDefaultPreReleaseIdentifiers>alpha.0</MinVerDefaultPreReleaseIdentifiers>
+  </PropertyGroup>
+
+</Project>
