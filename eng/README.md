@@ -91,6 +91,17 @@ So only the documented description is generated. `-new` is tracked by hash in
 `specs/provenance.json` so its changes are noticed; when Kapso documents it, the
 switch is one line in `Sync-Specs.ps1`.
 
+## Why `kiota-lock.json` is not committed
+
+Kiota writes a lock file next to each client recording a `descriptionHash`. That
+hash is computed from the parsed document rather than the file's bytes, and the
+same description hashes differently on Windows and Linux — which made
+regeneration look non-reproducible when the generated C# was in fact identical.
+
+The lock file exists to support `kiota update`, and `Generate-Clients.ps1` always
+regenerates in full, so nothing reads it. `specs/provenance.json` records a
+stable SHA-256 of every description instead.
+
 ## Why the generated code is committed
 
 Builds need neither the network nor Kiota, CI works offline, and each

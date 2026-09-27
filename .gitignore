@@ -491,3 +491,12 @@ specs/whatsapp/
 # silently swallowed. Debug/, Release/, Logs/ and Packages/ are the same hazard
 # waiting for Kapso to add a matching route.
 !src/Kapso/Generated/**
+
+# Kiota's lock file records a descriptionHash it computes from the parsed
+# document, and that value is not stable across platforms — the same description
+# hashes differently on Windows and Linux, which made regeneration look
+# non-reproducible when it was not. The lock file only exists to support
+# `kiota update`, and eng/Generate-Clients.ps1 always regenerates in full, so
+# nothing here reads it. specs/provenance.json records a stable SHA-256 of every
+# description instead. Must come after the negation above.
+src/Kapso/Generated/**/kiota-lock.json

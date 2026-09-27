@@ -64,7 +64,9 @@ jobs:
       # were lost to the .NET template's [Pp]ublish/ rule.
       - name: Fail if any generated file is git-ignored
         run: |
-          ignored=$(git ls-files --others --ignored --exclude-standard -- src/Kapso/Generated)
+          # kiota-lock.json is ignored on purpose: its descriptionHash is not
+          # stable across platforms. See .gitignore.
+          ignored=$(git ls-files --others --ignored --exclude-standard -- src/Kapso/Generated | grep -v 'kiota-lock.json' || true)
           if [ -n "$ignored" ]; then
             echo "::error::These generated files are excluded by .gitignore and would be missing from a clean checkout:"
             echo "$ignored"
