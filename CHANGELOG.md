@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-27
+
 ### Added
 
 - Typed clients for the WhatsApp, Platform, Workflows and Agent APIs, generated
@@ -18,3 +20,6 @@ All notable changes to this project are documented here. The format follows
 - `EnumerateAsync` pagination over both of Kapso's paging schemes.
 - Webhook signature verification and typed payloads for the documented events.
 - Native AOT and trimming support, verified by publishing a sample in CI.
+
+[Unreleased]: https://github.com/magoolation/kapso-client-net/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/magoolation/kapso-client-net/releases/tag/v0.1.0
