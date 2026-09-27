@@ -14,7 +14,8 @@ secret-shaped is ever committed.
 ## Where secrets live
 
 Never in this repository. Use [user secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets),
-which are stored in your user profile:
+which are stored in your user profile. Every sample shares one vault, so the key
+is set once from any sample directory:
 
 ```bash
 cd samples/Kapso.Samples.Quickstart
@@ -79,13 +80,14 @@ without `--send`.
 
 ```bash
 cd samples/Kapso.Samples.SendMessage
-dotnet user-secrets set "Kapso:ApiKey"        "<your key>"
 dotnet user-secrets set "Kapso:PhoneNumberId" "<from the quickstart output>"
 dotnet user-secrets set "Kapso:Recipient"     "<your own number, digits only>"
 
 dotnet run              # shows what it would send, sends nothing
 dotnet run -- --send    # actually sends
 ```
+
+The API key comes from the shared vault, so it is not repeated here.
 
 The recipient is masked in the output, so a full number never reaches your
 terminal scrollback or a CI log.

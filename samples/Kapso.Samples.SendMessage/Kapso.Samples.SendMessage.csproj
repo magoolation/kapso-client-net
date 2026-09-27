@@ -2,7 +2,6 @@
 
   <PropertyGroup>
     <RootNamespace>Kapso.Samples.SendMessage</RootNamespace>
-    <UserSecretsId>kapso-client-net-sendmessage</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

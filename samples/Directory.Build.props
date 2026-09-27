@@ -8,6 +8,13 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
+  <!-- One secrets vault shared by every sample, so the API key is set once from
+       any sample directory rather than repeated per project. The vault lives in
+       the user profile; nothing here is ever written to this repository. -->
+  <PropertyGroup>
+    <UserSecretsId>kapso-client-net-samples</UserSecretsId>
+  </PropertyGroup>
+
   <!-- Samples are read before they are run, so they favour legibility over the
        last allocation. CA1848 and CA1873 push logging through LoggerMessage
        delegates, which is right in a hot path and pure noise in a twenty-line

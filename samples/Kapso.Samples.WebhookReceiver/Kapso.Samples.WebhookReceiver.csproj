@@ -2,7 +2,6 @@
 
   <PropertyGroup>
     <RootNamespace>Kapso.Samples.WebhookReceiver</RootNamespace>
-    <UserSecretsId>kapso-client-net-webhookreceiver</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

@@ -2,8 +2,6 @@
 
   <PropertyGroup>
     <RootNamespace>Kapso.Samples.Quickstart</RootNamespace>
-    <!-- Secrets live in the user profile, never in this directory. -->
-    <UserSecretsId>kapso-client-net-quickstart</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
