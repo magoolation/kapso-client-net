@@ -500,3 +500,7 @@ specs/whatsapp/
 # nothing here reads it. specs/provenance.json records a stable SHA-256 of every
 # description instead. Must come after the negation above.
 src/Kapso/Generated/**/kiota-lock.json
+
+# Output from run-with-tunnel.ps1
+tunnel.log
+tunnel.err

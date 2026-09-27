@@ -9,6 +9,7 @@ secret-shaped is ever committed.
 | [Kapso.Samples.WebhookReceiver](Kapso.Samples.WebhookReceiver) | Signature verification and typed dispatch, end to end | no |
 | [Kapso.Samples.Quickstart](Kapso.Samples.Quickstart) | Auth, both base addresses, pagination, rate limits — read-only | yes |
 | [Kapso.Samples.SendMessage](Kapso.Samples.SendMessage) | Sending a real WhatsApp message | yes |
+| [Kapso.Samples.SendMedia](Kapso.Samples.SendMedia) | Uploading and sending an image and a voice note | yes |
 | [Kapso.Samples.Aot](Kapso.Samples.Aot) | The package works under Native AOT | no |
 
 ## Where secrets live
@@ -52,7 +53,22 @@ dotnet user-secrets set "Kapso:WebhookSecret" "<the webhook's secret>"
 dotnet run
 ```
 
-Expose it with ngrok or a Cloudflare tunnel and register the HTTPS URL in Kapso.
+### Receiving real events
+
+Kapso delivers over HTTPS, so localhost needs a tunnel in front of it:
+
+```powershell
+winget install Cloudflare.cloudflared
+pwsh samples/Kapso.Samples.WebhookReceiver/run-with-tunnel.ps1
+```
+
+The script starts the tunnel, prints the URL to register, and runs the receiver
+until Ctrl+C. Paste that URL into the number's **Manage Webhooks** in Kapso, set
+the same secret, and subscribe to the events you want.
+
+A quick tunnel needs no Cloudflare account, and its URL changes every run — so
+the webhook has to be re-pointed after a restart. A named tunnel keeps a stable
+hostname if that becomes tiresome.
 
 The one thing to copy from this sample: it reads the **raw request body** before
 anything parses it. Model binding hands back a re-serialized object whose bytes
@@ -91,3 +107,22 @@ The API key comes from the shared vault, so it is not repeated here.
 
 The recipient is masked in the output, so a full number never reaches your
 terminal scrollback or a CI log.
+
+## Send media
+
+Uploads a file, then sends a message referencing the returned media ID.
+
+```bash
+dotnet run --project samples/Kapso.Samples.SendMedia -- --send
+```
+
+Two things this exists to demonstrate, because both are easy to get wrong:
+
+- **The upload needs `messaging_product`**, the same field whose absence makes a
+  text send fail. `UploadAsync` sets it, so it cannot be forgotten.
+- **A voice note has to be Opus.** WhatsApp accepts `audio/ogg` only when the
+  codec is Opus, and only then does it render as a voice note rather than as an
+  attached file. Setting `Audio.Voice = true` on anything else does not help.
+
+The assets are committed, so ffmpeg is not needed to run it. See
+[assets/README.md](Kapso.Samples.SendMedia/assets/README.md) for how they were made.
