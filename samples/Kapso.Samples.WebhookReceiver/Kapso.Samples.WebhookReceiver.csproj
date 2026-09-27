@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>Kapso.Samples.WebhookReceiver</RootNamespace>
+    <UserSecretsId>kapso-client-net-webhookreceiver</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Kapso/Kapso.csproj" />
+  </ItemGroup>
+
+</Project>

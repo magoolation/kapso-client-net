@@ -81,6 +81,39 @@ jobs:
             exit 1
           fi
 
+  samples:
+    name: Samples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - run: dotnet build samples -c Release
+
+      # Proves the webhook path end to end with no Kapso account: the sample signs
+      # a delivery, posts it to itself, and checks that a valid one is accepted and
+      # a forged or altered one is rejected.
+      - name: Webhook receiver self-test
+        run: dotnet run --project samples/Kapso.Samples.WebhookReceiver -c Release --no-build -- --selftest
+
+      # Runs only where a key is available — a fork's pull request has none, and
+      # must not fail for it. Read-only: it creates and sends nothing.
+      - name: Read-only tour against the live API
+        if: ${{ env.KAPSO_API_KEY != '' }}
+        env:
+          KAPSO_API_KEY: ${{ secrets.KAPSO_API_KEY }}
+        run: dotnet run --project samples/Kapso.Samples.Quickstart -c Release --no-build
+
+  secrets:
+    name: No secrets committed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pwsh eng/Test-NoSecrets.ps1
+
   aot:
     name: Native AOT
     runs-on: ubuntu-latest

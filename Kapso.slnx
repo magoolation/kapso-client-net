@@ -4,6 +4,9 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/Kapso.Samples.Aot/Kapso.Samples.Aot.csproj" />
+    <Project Path="samples/Kapso.Samples.Quickstart/Kapso.Samples.Quickstart.csproj" />
+    <Project Path="samples/Kapso.Samples.SendMessage/Kapso.Samples.SendMessage.csproj" />
+    <Project Path="samples/Kapso.Samples.WebhookReceiver/Kapso.Samples.WebhookReceiver.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Kapso/Kapso.csproj" />

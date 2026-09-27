@@ -1,0 +1,19 @@
+<Project>
+
+  <!-- Settings shared by every sample. Imports the repo-wide props first. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <!-- Samples are read before they are run, so they favour legibility over the
+       last allocation. CA1848 and CA1873 push logging through LoggerMessage
+       delegates, which is right in a hot path and pure noise in a twenty-line
+       example. The shipped library still enforces both. -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);CA1848;CA1873</NoWarn>
+  </PropertyGroup>
+
+</Project>

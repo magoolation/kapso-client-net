@@ -150,6 +150,22 @@ builder.Services
     .AddStandardResilienceHandler();
 ```
 
+## Samples
+
+Four runnable programs in [samples/](samples) — a webhook receiver, a read-only
+tour, a message sender and an AOT smoke test. None holds a credential, and
+`eng/Test-NoSecrets.ps1` fails the build if one is ever committed.
+
+The webhook receiver proves itself with no Kapso account at all:
+
+```bash
+dotnet run --project samples/Kapso.Samples.WebhookReceiver -- --selftest
+```
+
+It signs a delivery, posts it to its own endpoint, and checks that a valid one is
+accepted while a forged, unsigned or altered one is rejected. CI runs it on every
+push. See [samples/README.md](samples/README.md).
+
 ## Native AOT and trimming
 
 The package is AOT- and trim-compatible. `samples/Kapso.Samples.Aot` is published
