@@ -21,6 +21,17 @@ jobs:
       # there is no long-lived secret to rotate or leak.
       id-token: write
     steps:
+      # MinVer versions an untagged commit as 0.0.0-alpha.N. Publishing that would
+      # burn the version on nuget.org for good, since a published version can be
+      # unlisted but never removed. workflow_dispatch stays available for
+      # re-running a release, but only ever against a tag.
+      - name: Refuse to publish an untagged build
+        run: |
+          if [ "$GITHUB_REF_TYPE" != "tag" ]; then
+            echo "::error::A release must run from a v* tag, not $GITHUB_REF."
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
         with:
           # MinVer reads the tag to derive the package version.
