@@ -117,6 +117,43 @@ components:
               type: string
               description: Facebook trace ID for debugging
               example: AXk7s_8dR4eVHp9Kq2MmNlO
+    MessageInFlightError:
+      type: object
+      description: Another message to this recipient is still being sent. Wait and retry.
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: Another message is already in-flight for this conversation. Please retry shortly.
+    ThreadOwnershipError:
+      type: object
+      description: |
+        Shared numbers only. Another app handles the conversation, so the regular message was refused
+        before reaching Meta. Send a template, or take over the conversation.
+      required:
+        - error
+        - code
+        - thread_error
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: Another app controls this conversation. Automated Service messages are blocked; templates are still allowed.
+        code:
+          type: string
+          description: |
+            `meta_business_agent_control` on numbers with Meta Business Agent; `thread_error` has the
+            specific reason.
+          enum:
+            - thread_not_owner
+            - thread_ownership_unknown
+            - meta_business_agent_control
+        thread_error:
+          type: string
+          enum:
+            - thread_not_owner
+            - thread_ownership_unknown
     MarketingPreferenceStoppedError:
       type: object
       description: Returned when the recipient asked WhatsApp to stop marketing
@@ -2283,7 +2320,22 @@ paths:
         - **interactive**: Interactive messages (buttons, lists, flows)
         - **template**: Message templates
         - **reaction**: Emoji reactions to messages
+
+        On a [shared number](/docs/whatsapp/conversation-routing), regular messages need Kapso to handle
+        the conversation. Templates can always be sent.
       operationId: sendMessage
+      parameters:
+        - name: X-Kapso-Take-Control
+          in: header
+          required: false
+          description: |
+            Shared numbers only. Set to `true` to send even though another app handles the
+            conversation. Meta accepts it only when Kapso is your escalation app, and the send
+            takes the conversation.
+          schema:
+            type: string
+            enum:
+              - "true"
       requestBody:
         required: true
         content:
@@ -3152,17 +3204,29 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "409":
-          description: Conflict - Another message is already being sent to this recipient
+          description: Conflict - Another message is already being sent to this recipient, or another app handles the conversation
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                oneOf:
+                  - $ref: "#/components/schemas/MessageInFlightError"
+                  - $ref: "#/components/schemas/ThreadOwnershipError"
               examples:
                 message_in_flight:
                   summary: Message already in-flight
                   description: A message is currently being sent to this recipient. Wait and retry.
                   value:
                     error: Another message is already in-flight for this conversation. Please retry shortly.
+                thread_not_owner:
+                  summary: Another app handles the conversation
+                  description: |
+                    Shared numbers only. `code` is `thread_not_owner` or `thread_ownership_unknown`
+                    (`meta_business_agent_control` on numbers with Meta Business Agent, with the specific
+                    reason in `thread_error`). Send a template or take over the conversation.
+                  value:
+                    error: Another app controls this conversation. Automated Service messages are blocked; templates are still allowed.
+                    code: thread_not_owner
+                    thread_error: thread_not_owner
         "422":
           description: Unprocessable Entity
           content:
@@ -3825,6 +3889,142 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /{phone_number_id}/thread_control:
+    parameters:
+      - name: phone_number_id
+        in: path
+        required: true
+        description: WhatsApp Business Phone Number ID
+        schema:
+          type: string
+        example: "110987654321"
+    post:
+      tags:
+        - Conversations
+      summary: Pass, release or take a conversation
+      description: |
+        Move a conversation between apps on a [shared number](/docs/whatsapp/conversation-routing).
+
+        **Proxy endpoint**: The body is forwarded to Meta unchanged and Meta's response is returned
+        unchanged. Kapso records the call and updates the conversation's routing state.
+
+        Only your escalation app can `take`. Kapso never retries: a `502` means the result is
+        unknown and the action may have gone through.
+      operationId: threadControl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - messaging_product
+                - action
+              anyOf:
+                - required:
+                    - to
+                - required:
+                    - recipient
+              properties:
+                messaging_product:
+                  type: string
+                  enum:
+                    - whatsapp
+                action:
+                  type: string
+                  enum:
+                    - take
+                    - release
+                    - pass
+                to:
+                  type: string
+                  description: Customer phone number. Use `to` or `recipient`.
+                  example: "15551234567"
+                recipient:
+                  type: string
+                  description: Customer business-scoped user ID. Use `to` or `recipient`.
+                  example: US.13491208655302741918
+                control_pass:
+                  type: object
+                  description: Pass only. Without it, the conversation goes to the escalation app.
+                  properties:
+                    target_role:
+                      type: string
+                      enum:
+                        - escalation
+                        - ai_agent
+                        - customer_service
+                        - marketing
+                        - utility
+                        - ctwa
+                metadata:
+                  type: string
+                  maxLength: 2000
+                  description: Passed to the app that receives the conversation.
+            examples:
+              pass:
+                summary: Pass to the escalation app
+                value:
+                  messaging_product: whatsapp
+                  to: "15551234567"
+                  action: pass
+                  control_pass:
+                    target_role: escalation
+                  metadata: Customer asked for a human
+              take:
+                summary: Take the conversation
+                value:
+                  messaging_product: whatsapp
+                  recipient: US.13491208655302741918
+                  action: take
+              release:
+                summary: Release the conversation
+                value:
+                  messaging_product: whatsapp
+                  to: "15551234567"
+                  action: release
+      responses:
+        "200":
+          description: Meta accepted the action
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messaging_product:
+                    type: string
+                    example: whatsapp
+                  request_id:
+                    type: string
+                    description: Present when Meta returns it
+        "403":
+          description: Meta refused the action, for example error code `2494191` when Kapso may not take the conversation
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error:
+                  code: 2494191
+                  message: You are not permitted to take thread control for this phone number.
+        "409":
+          description: Another action for this conversation is still in progress
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: thread_control_in_progress
+                detail: Another control action for this conversation is still in progress.
+        "502":
+          description: Meta did not answer; the result is unknown. Do not retry automatically.
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: Meta API request failed
+                detail: The thread control result is unknown. Do not retry automatically.
   /{phone_number_id}/contacts:
     parameters:
       - name: phone_number_id
