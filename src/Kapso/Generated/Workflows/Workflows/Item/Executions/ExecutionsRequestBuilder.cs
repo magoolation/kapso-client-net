@@ -22,7 +22,7 @@ namespace Kapso.Generated.Workflows.Workflows.Item.Executions
         /// </summary>
         /// <param name="pathParameters">Path parameters for the request</param>
         /// <param name="requestAdapter">The request adapter to use to execute the requests.</param>
-        public ExecutionsRequestBuilder(Dictionary<string, object> pathParameters, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/workflows/{workflow_id}/executions{?after*,before*,created_after*,created_before*,limit*,status*,waiting_reason*,whatsapp_conversation_id*}", pathParameters)
+        public ExecutionsRequestBuilder(Dictionary<string, object> pathParameters, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/workflows/{workflow_id}/executions{?after*,before*,created_after*,created_before*,limit*,status*,whatsapp_conversation_id*}", pathParameters)
         {
         }
         /// <summary>
@@ -30,7 +30,7 @@ namespace Kapso.Generated.Workflows.Workflows.Item.Executions
         /// </summary>
         /// <param name="rawUrl">The raw URL to use for the request builder.</param>
         /// <param name="requestAdapter">The request adapter to use to execute the requests.</param>
-        public ExecutionsRequestBuilder(string rawUrl, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/workflows/{workflow_id}/executions{?after*,before*,created_after*,created_before*,limit*,status*,waiting_reason*,whatsapp_conversation_id*}", rawUrl)
+        public ExecutionsRequestBuilder(string rawUrl, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/workflows/{workflow_id}/executions{?after*,before*,created_after*,created_before*,limit*,status*,whatsapp_conversation_id*}", rawUrl)
         {
         }
         /// <summary>
@@ -177,16 +177,6 @@ namespace Kapso.Generated.Workflows.Workflows.Item.Executions
             /// <summary>Filter by execution status</summary>
             [QueryParameter("status")]
             public global::Kapso.Generated.Workflows.Workflows.Item.Executions.GetStatusQueryParameterType? Status { get; set; }
-            /// <summary>Filter waiting executions by reason (e.g., &apos;wait_for_response&apos;, &apos;timeout&apos;)</summary>
-#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
-#nullable enable
-            [QueryParameter("waiting_reason")]
-            public string? WaitingReason { get; set; }
-#nullable restore
-#else
-            [QueryParameter("waiting_reason")]
-            public string WaitingReason { get; set; }
-#endif
             /// <summary>Filter by associated WhatsApp conversation</summary>
             [QueryParameter("whatsapp_conversation_id")]
             public Guid? WhatsappConversationId { get; set; }

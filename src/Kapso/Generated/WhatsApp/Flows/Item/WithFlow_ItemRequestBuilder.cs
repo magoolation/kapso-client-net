@@ -40,7 +40,7 @@ namespace Kapso.Generated.WhatsApp.Flows.Item
         /// </summary>
         /// <param name="pathParameters">Path parameters for the request</param>
         /// <param name="requestAdapter">The request adapter to use to execute the requests.</param>
-        public WithFlow_ItemRequestBuilder(Dictionary<string, object> pathParameters, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/{flow_id}{?business_account_id*,fields*,phone_number_id*}", pathParameters)
+        public WithFlow_ItemRequestBuilder(Dictionary<string, object> pathParameters, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/{flow_id}{?business_account_id*,phone_number_id*}", pathParameters)
         {
         }
         /// <summary>
@@ -48,11 +48,11 @@ namespace Kapso.Generated.WhatsApp.Flows.Item
         /// </summary>
         /// <param name="rawUrl">The raw URL to use for the request builder.</param>
         /// <param name="requestAdapter">The request adapter to use to execute the requests.</param>
-        public WithFlow_ItemRequestBuilder(string rawUrl, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/{flow_id}{?business_account_id*,fields*,phone_number_id*}", rawUrl)
+        public WithFlow_ItemRequestBuilder(string rawUrl, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/{flow_id}{?business_account_id*,phone_number_id*}", rawUrl)
         {
         }
         /// <summary>
-        /// Retrieve detailed information about a specific flow.By default returns: id, name, status, categories, validation_errors.Use `fields` parameter to request additional information like preview URLs, health status, metrics, etc.**Proxy endpoint**: Proxies directly to Meta Graph API.
+        /// Retrieve detailed information about a specific flow.Send a nonblank `fields` query parameter to select the fields to return.Include at least one nonblank query parameter: `phone_number_id` or `business_account_id`.Kapso uses this context to select the connection and authorize access.**Proxy endpoint**: Proxies directly to Meta Graph API.
         /// </summary>
         /// <returns>A <see cref="global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_GetResponse"/></returns>
         /// <param name="cancellationToken">Cancellation token to use when cancelling requests</param>
@@ -75,7 +75,7 @@ namespace Kapso.Generated.WhatsApp.Flows.Item
             return await RequestAdapter.SendAsync<global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_GetResponse>(requestInfo, global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_GetResponse.CreateFromDiscriminatorValue, errorMapping, cancellationToken).ConfigureAwait(false);
         }
         /// <summary>
-        /// Update flow name, categories, endpoint_uri, or application_id.**Proxy endpoint**: Proxies directly to Meta Graph API.
+        /// Update flow name, categories, endpoint_uri, or application_id.Include at least one nonblank query parameter: `phone_number_id` or `business_account_id`.Kapso uses this context to select the connection and authorize access.Send JSON or multipart form data. In form data, send `categories` as a JSON-encoded array string.Rename a draft flow:```bashcurl -X POST &quot;https://api.kapso.ai/meta/whatsapp/v24.0/FLOW_ID?phone_number_id=PHONE_NUMBER_ID&quot; \  -H &quot;X-API-Key: YOUR_PROJECT_API_KEY&quot; \  -H &quot;Content-Type: application/json&quot; \  -d &apos;{&quot;name&quot;:&quot;Updated Flow Name&quot;}&apos;```**Proxy endpoint**: Proxies directly to Meta Graph API.
         /// </summary>
         /// <returns>A <see cref="global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_PostResponse"/></returns>
         /// <param name="body">The request body</param>
@@ -84,11 +84,11 @@ namespace Kapso.Generated.WhatsApp.Flows.Item
         /// <exception cref="global::Kapso.Generated.WhatsApp.Flows.Models.Error">When receiving a 401 status code</exception>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
-        public async Task<global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_PostResponse?> PostAsync(global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_PostRequestBody body, Action<RequestConfiguration<DefaultQueryParameters>>? requestConfiguration = default, CancellationToken cancellationToken = default)
+        public async Task<global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_PostResponse?> PostAsync(global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_PostRequestBody body, Action<RequestConfiguration<global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_ItemRequestBuilder.WithFlow_ItemRequestBuilderPostQueryParameters>>? requestConfiguration = default, CancellationToken cancellationToken = default)
         {
 #nullable restore
 #else
-        public async Task<global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_PostResponse> PostAsync(global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_PostRequestBody body, Action<RequestConfiguration<DefaultQueryParameters>> requestConfiguration = default, CancellationToken cancellationToken = default)
+        public async Task<global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_PostResponse> PostAsync(global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_PostRequestBody body, Action<RequestConfiguration<global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_ItemRequestBuilder.WithFlow_ItemRequestBuilderPostQueryParameters>> requestConfiguration = default, CancellationToken cancellationToken = default)
         {
 #endif
             if(ReferenceEquals(body, null)) throw new ArgumentNullException(nameof(body));
@@ -100,7 +100,7 @@ namespace Kapso.Generated.WhatsApp.Flows.Item
             return await RequestAdapter.SendAsync<global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_PostResponse>(requestInfo, global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_PostResponse.CreateFromDiscriminatorValue, errorMapping, cancellationToken).ConfigureAwait(false);
         }
         /// <summary>
-        /// Retrieve detailed information about a specific flow.By default returns: id, name, status, categories, validation_errors.Use `fields` parameter to request additional information like preview URLs, health status, metrics, etc.**Proxy endpoint**: Proxies directly to Meta Graph API.
+        /// Retrieve detailed information about a specific flow.Send a nonblank `fields` query parameter to select the fields to return.Include at least one nonblank query parameter: `phone_number_id` or `business_account_id`.Kapso uses this context to select the connection and authorize access.**Proxy endpoint**: Proxies directly to Meta Graph API.
         /// </summary>
         /// <returns>A <see cref="RequestInformation"/></returns>
         /// <param name="requestConfiguration">Configuration for the request such as headers, query parameters, and middleware options.</param>
@@ -113,24 +113,24 @@ namespace Kapso.Generated.WhatsApp.Flows.Item
         public RequestInformation ToGetRequestInformation(Action<RequestConfiguration<global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_ItemRequestBuilder.WithFlow_ItemRequestBuilderGetQueryParameters>> requestConfiguration = default)
         {
 #endif
-            var requestInfo = new RequestInformation(Method.GET, UrlTemplate, PathParameters);
+            var requestInfo = new RequestInformation(Method.GET, "{+baseurl}/{flow_id}?fields={fields}{&business_account_id*,phone_number_id*}", PathParameters);
             requestInfo.Configure(requestConfiguration);
             requestInfo.Headers.TryAdd("Accept", "application/json");
             return requestInfo;
         }
         /// <summary>
-        /// Update flow name, categories, endpoint_uri, or application_id.**Proxy endpoint**: Proxies directly to Meta Graph API.
+        /// Update flow name, categories, endpoint_uri, or application_id.Include at least one nonblank query parameter: `phone_number_id` or `business_account_id`.Kapso uses this context to select the connection and authorize access.Send JSON or multipart form data. In form data, send `categories` as a JSON-encoded array string.Rename a draft flow:```bashcurl -X POST &quot;https://api.kapso.ai/meta/whatsapp/v24.0/FLOW_ID?phone_number_id=PHONE_NUMBER_ID&quot; \  -H &quot;X-API-Key: YOUR_PROJECT_API_KEY&quot; \  -H &quot;Content-Type: application/json&quot; \  -d &apos;{&quot;name&quot;:&quot;Updated Flow Name&quot;}&apos;```**Proxy endpoint**: Proxies directly to Meta Graph API.
         /// </summary>
         /// <returns>A <see cref="RequestInformation"/></returns>
         /// <param name="body">The request body</param>
         /// <param name="requestConfiguration">Configuration for the request such as headers, query parameters, and middleware options.</param>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
-        public RequestInformation ToPostRequestInformation(global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_PostRequestBody body, Action<RequestConfiguration<DefaultQueryParameters>>? requestConfiguration = default)
+        public RequestInformation ToPostRequestInformation(global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_PostRequestBody body, Action<RequestConfiguration<global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_ItemRequestBuilder.WithFlow_ItemRequestBuilderPostQueryParameters>>? requestConfiguration = default)
         {
 #nullable restore
 #else
-        public RequestInformation ToPostRequestInformation(global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_PostRequestBody body, Action<RequestConfiguration<DefaultQueryParameters>> requestConfiguration = default)
+        public RequestInformation ToPostRequestInformation(global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_PostRequestBody body, Action<RequestConfiguration<global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_ItemRequestBuilder.WithFlow_ItemRequestBuilderPostQueryParameters>> requestConfiguration = default)
         {
 #endif
             if(ReferenceEquals(body, null)) throw new ArgumentNullException(nameof(body));
@@ -150,7 +150,7 @@ namespace Kapso.Generated.WhatsApp.Flows.Item
             return new global::Kapso.Generated.WhatsApp.Flows.Item.WithFlow_ItemRequestBuilder(rawUrl, RequestAdapter);
         }
         /// <summary>
-        /// Retrieve detailed information about a specific flow.By default returns: id, name, status, categories, validation_errors.Use `fields` parameter to request additional information like preview URLs, health status, metrics, etc.**Proxy endpoint**: Proxies directly to Meta Graph API.
+        /// Retrieve detailed information about a specific flow.Send a nonblank `fields` query parameter to select the fields to return.Include at least one nonblank query parameter: `phone_number_id` or `business_account_id`.Kapso uses this context to select the connection and authorize access.**Proxy endpoint**: Proxies directly to Meta Graph API.
         /// </summary>
         [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
         public partial class WithFlow_ItemRequestBuilderGetQueryParameters 
@@ -176,6 +176,33 @@ namespace Kapso.Generated.WhatsApp.Flows.Item
             public string Fields { get; set; }
 #endif
             /// <summary>Required when accessing flow by ID (unless business_account_id provided)</summary>
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+#nullable enable
+            [QueryParameter("phone_number_id")]
+            public string? PhoneNumberId { get; set; }
+#nullable restore
+#else
+            [QueryParameter("phone_number_id")]
+            public string PhoneNumberId { get; set; }
+#endif
+        }
+        /// <summary>
+        /// Update flow name, categories, endpoint_uri, or application_id.Include at least one nonblank query parameter: `phone_number_id` or `business_account_id`.Kapso uses this context to select the connection and authorize access.Send JSON or multipart form data. In form data, send `categories` as a JSON-encoded array string.Rename a draft flow:```bashcurl -X POST &quot;https://api.kapso.ai/meta/whatsapp/v24.0/FLOW_ID?phone_number_id=PHONE_NUMBER_ID&quot; \  -H &quot;X-API-Key: YOUR_PROJECT_API_KEY&quot; \  -H &quot;Content-Type: application/json&quot; \  -d &apos;{&quot;name&quot;:&quot;Updated Flow Name&quot;}&apos;```**Proxy endpoint**: Proxies directly to Meta Graph API.
+        /// </summary>
+        [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
+        public partial class WithFlow_ItemRequestBuilderPostQueryParameters 
+        {
+            /// <summary>Required when updating flow by ID (unless phone_number_id provided)</summary>
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+#nullable enable
+            [QueryParameter("business_account_id")]
+            public string? BusinessAccountId { get; set; }
+#nullable restore
+#else
+            [QueryParameter("business_account_id")]
+            public string BusinessAccountId { get; set; }
+#endif
+            /// <summary>Required when updating flow by ID (unless business_account_id provided)</summary>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
             [QueryParameter("phone_number_id")]

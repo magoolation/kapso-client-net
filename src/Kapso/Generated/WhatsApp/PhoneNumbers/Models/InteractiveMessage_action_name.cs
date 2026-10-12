@@ -3,7 +3,7 @@ using System.Runtime.Serialization;
 using System;
 namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
 {
-    /// <summary>Action name.- &quot;cta_url&quot; for CTA URL buttons- &quot;send_location&quot; for location requests- &quot;request_contact_info&quot; for phone number/contact info requests- &quot;address_message&quot; for address collection- &quot;flow&quot; for WhatsApp Flows- &quot;call_permission_request&quot; for call permission request- &quot;catalog_message&quot; for catalog browse</summary>
+    /// <summary>Action name.- &quot;cta_url&quot; for CTA URL buttons- &quot;send_location&quot; for location requests- &quot;request_contact_info&quot; for phone number/contact info requests- &quot;address_message&quot; for address collection- &quot;flow&quot; for WhatsApp Flows- &quot;call_permission_request&quot; for call permission request- &quot;catalog_message&quot; for catalog browse- &quot;voice_call&quot; for the WhatsApp call button</summary>
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public enum InteractiveMessage_action_name
     {
@@ -34,6 +34,10 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
         [EnumMember(Value = "catalog_message")]
         #pragma warning disable CS1591
         Catalog_message,
+        #pragma warning restore CS1591
+        [EnumMember(Value = "voice_call")]
+        #pragma warning disable CS1591
+        Voice_call,
         #pragma warning restore CS1591
     }
 }

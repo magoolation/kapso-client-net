@@ -13,7 +13,7 @@ namespace Kapso.Generated.Workflows.Models
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public partial class WorkflowNodeAgentKnowledgeBase : IParsable
     {
-        /// <summary>The description property</summary>
+        /// <summary>Included in the search tool description so the agent can tell this knowledge base apart from the others on the same node.</summary>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
         public string? Description { get; set; }
@@ -21,7 +21,7 @@ namespace Kapso.Generated.Workflows.Models
 #else
         public string Description { get; set; }
 #endif
-        /// <summary>Inline knowledge base content available to the agent.</summary>
+        /// <summary>Inline knowledge base content available to the agent. Searched by keyword, line by line, so keep each line self-contained.</summary>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
         public string? KnowledgeBaseText { get; set; }
@@ -29,7 +29,7 @@ namespace Kapso.Generated.Workflows.Models
 #else
         public string KnowledgeBaseText { get; set; }
 #endif
-        /// <summary>The name property</summary>
+        /// <summary>Knowledge base name. Also used to derive the search tool name exposed to the agent (a name of &quot;FAQ&quot; yields `search_faq`); colliding names get a `_2`, `_3`, ... suffix.</summary>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
         public string? Name { get; set; }

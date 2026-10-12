@@ -3,17 +3,18 @@ using System.Runtime.Serialization;
 using System;
 namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
 {
-    /// <summary>Call direction</summary>
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
-    public enum WhatsappCall_direction
+    #pragma warning disable CS1591
+    public enum CallCaptureOption_status
+    #pragma warning restore CS1591
     {
-        [EnumMember(Value = "inbound")]
+        [EnumMember(Value = "ENABLED")]
         #pragma warning disable CS1591
-        Inbound,
+        ENABLED,
         #pragma warning restore CS1591
-        [EnumMember(Value = "outbound")]
+        [EnumMember(Value = "DISABLED")]
         #pragma warning disable CS1591
-        Outbound,
+        DISABLED,
         #pragma warning restore CS1591
     }
 }

@@ -3,14 +3,41 @@ using System.Runtime.Serialization;
 using System;
 namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Messages
 {
+    /// <summary>`insufficient_credits` - the project balance does not cover the fee for this message.`service_credits_exhausted` - paid sends are paused because the project has a settled service charge and a balance at or below zero. Add credits to resume.`service_catalog_missing` - service billing is not provisioned for this number yet.`service_region_missing` - the recipient&apos;s pricing region could not be determined.`service_rate_unprepared`, `service_rate_mismatch` - Meta&apos;s published service rate for the recipient&apos;s market is not available.`waba_timezone_missing` - the WhatsApp Business Account timezone is not supported, so the delivery date cannot be priced.`pricing_missing` - no Meta rate applies to the resolved region and date.</summary>
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
-    #pragma warning disable CS1591
     public enum SendMessageResponse402Error_code
-    #pragma warning restore CS1591
     {
         [EnumMember(Value = "insufficient_credits")]
         #pragma warning disable CS1591
         Insufficient_credits,
+        #pragma warning restore CS1591
+        [EnumMember(Value = "service_credits_exhausted")]
+        #pragma warning disable CS1591
+        Service_credits_exhausted,
+        #pragma warning restore CS1591
+        [EnumMember(Value = "service_catalog_missing")]
+        #pragma warning disable CS1591
+        Service_catalog_missing,
+        #pragma warning restore CS1591
+        [EnumMember(Value = "service_region_missing")]
+        #pragma warning disable CS1591
+        Service_region_missing,
+        #pragma warning restore CS1591
+        [EnumMember(Value = "service_rate_unprepared")]
+        #pragma warning disable CS1591
+        Service_rate_unprepared,
+        #pragma warning restore CS1591
+        [EnumMember(Value = "service_rate_mismatch")]
+        #pragma warning disable CS1591
+        Service_rate_mismatch,
+        #pragma warning restore CS1591
+        [EnumMember(Value = "waba_timezone_missing")]
+        #pragma warning disable CS1591
+        Waba_timezone_missing,
+        #pragma warning restore CS1591
+        [EnumMember(Value = "pricing_missing")]
+        #pragma warning disable CS1591
+        Pricing_missing,
         #pragma warning restore CS1591
     }
 }

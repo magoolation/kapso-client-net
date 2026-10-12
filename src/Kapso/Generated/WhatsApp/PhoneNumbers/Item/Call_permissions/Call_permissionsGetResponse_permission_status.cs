@@ -15,5 +15,9 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Call_permissions
         #pragma warning disable CS1591
         Temporary,
         #pragma warning restore CS1591
+        [EnumMember(Value = "permanent")]
+        #pragma warning disable CS1591
+        Permanent,
+        #pragma warning restore CS1591
     }
 }

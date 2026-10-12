@@ -73,7 +73,7 @@ namespace Kapso.Generated.Workflows.Models
         public int? MaxIterations { get; set; }
         /// <summary>The max_tokens property</summary>
         public int? MaxTokens { get; set; }
-        /// <summary>Controls how assistant text becomes user-visible.- `auto_send_assistant_text`: normal assistant text responses are sent to the WhatsApp user automatically.- `tool_only`: normal assistant text is internal only; the agent must call `send_notification_to_user` to send user-visible messages.</summary>
+        /// <summary>Controls how assistant text becomes user-visible.- `auto_send_assistant_text`: normal assistant text responses are sent to the WhatsApp user automatically.- `tool_only`: normal assistant text is internal only; the agent must call `send_notification_to_user` to send user-visible messages.`tool_only` requires a model that accepts forced tool calls. `claude-fable-5-1`, `claude-opus-5-5` and `claude-sonnet-5-5` are rejected with a `provider_model` validation error.</summary>
         public global::Kapso.Generated.Workflows.Models.WorkflowNodeAgentConfig_message_delivery_mode? MessageDeliveryMode { get; set; }
         /// <summary>Prompt orchestration mode used by the flow agent.</summary>
         public global::Kapso.Generated.Workflows.Models.WorkflowNodeAgentConfig_observer_prompt_mode? ObserverPromptMode { get; set; }

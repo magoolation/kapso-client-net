@@ -8,7 +8,7 @@ using System;
 namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
 {
     /// <summary>
-    /// Action definition. Structure varies by interactive type.NOTE: The structure of the action object varies by type:- type=button: Requires `buttons` array- type=list: Requires `button` (string) and `sections` array- type=flow: Requires `name=&quot;flow&quot;` and `parameters` with flow config- type=cta_url: Requires `name=&quot;cta_url&quot;` and `parameters` with display_text and url- type=carousel: Requires `cards` array with 2-10 media cards. Top-level header/footer are not supported.- type=location_request_message: Requires `name=&quot;send_location&quot;`- type=request_contact_info: Requires `name=&quot;request_contact_info&quot;`- type=address_message: Requires `name=&quot;address_message&quot;` and `parameters` with country- type=order_details: Requires `name=&quot;review_and_pay&quot;` and a `parameters` object- type=order_status: Requires `name=&quot;review_order&quot;` and a `parameters` object
+    /// Action definition. Structure varies by interactive type.NOTE: The structure of the action object varies by type:- type=button: Requires `buttons` array- type=list: Requires `button` (string) and `sections` array- type=flow: Requires `name=&quot;flow&quot;` and `parameters` with flow config- type=cta_url: Requires `name=&quot;cta_url&quot;` and `parameters` with display_text and url- type=carousel: Requires `cards` array with 2-10 media cards. Top-level header/footer are not supported.- type=location_request_message: Requires `name=&quot;send_location&quot;`- type=request_contact_info: Requires `name=&quot;request_contact_info&quot;`- type=address_message: Requires `name=&quot;address_message&quot;` and `parameters` with country- type=order_details: Requires `name=&quot;review_and_pay&quot;` and a `parameters` object- type=order_status: Requires `name=&quot;review_order&quot;` and a `parameters` object- type=voice_call: Requires `name=&quot;voice_call&quot;`. `parameters` is optional.
     /// </summary>
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public partial class InteractiveMessage_action : IAdditionalDataHolder, IParsable
@@ -39,7 +39,7 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
 #else
         public List<global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.InteractiveMessage_action_cards> Cards { get; set; }
 #endif
-        /// <summary>Action name.- &quot;cta_url&quot; for CTA URL buttons- &quot;send_location&quot; for location requests- &quot;request_contact_info&quot; for phone number/contact info requests- &quot;address_message&quot; for address collection- &quot;flow&quot; for WhatsApp Flows- &quot;call_permission_request&quot; for call permission request- &quot;catalog_message&quot; for catalog browse</summary>
+        /// <summary>Action name.- &quot;cta_url&quot; for CTA URL buttons- &quot;send_location&quot; for location requests- &quot;request_contact_info&quot; for phone number/contact info requests- &quot;address_message&quot; for address collection- &quot;flow&quot; for WhatsApp Flows- &quot;call_permission_request&quot; for call permission request- &quot;catalog_message&quot; for catalog browse- &quot;voice_call&quot; for the WhatsApp call button</summary>
         public global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.InteractiveMessage_action_name? Name { get; set; }
         /// <summary>Parameters object (structure varies by action name).</summary>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER

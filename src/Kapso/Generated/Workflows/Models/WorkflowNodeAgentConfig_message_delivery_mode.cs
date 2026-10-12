@@ -3,7 +3,7 @@ using System.Runtime.Serialization;
 using System;
 namespace Kapso.Generated.Workflows.Models
 {
-    /// <summary>Controls how assistant text becomes user-visible.- `auto_send_assistant_text`: normal assistant text responses are sent to the WhatsApp user automatically.- `tool_only`: normal assistant text is internal only; the agent must call `send_notification_to_user` to send user-visible messages.</summary>
+    /// <summary>Controls how assistant text becomes user-visible.- `auto_send_assistant_text`: normal assistant text responses are sent to the WhatsApp user automatically.- `tool_only`: normal assistant text is internal only; the agent must call `send_notification_to_user` to send user-visible messages.`tool_only` requires a model that accepts forced tool calls. `claude-fable-5-1`, `claude-opus-5-5` and `claude-sonnet-5-5` are rejected with a `provider_model` validation error.</summary>
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public enum WorkflowNodeAgentConfig_message_delivery_mode
     {

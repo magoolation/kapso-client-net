@@ -74,7 +74,7 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Messages
             return await RequestAdapter.SendAsync<global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Messages.MessagesGetResponse>(requestInfo, global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Messages.MessagesGetResponse.CreateFromDiscriminatorValue, errorMapping, cancellationToken).ConfigureAwait(false);
         }
         /// <summary>
-        /// Send a WhatsApp message to a recipient.Use `to` for phone numbers. Use `recipient` for a BSUID or parent BSUID.If both are present, the phone number in `to` takes precedence.Supports all WhatsApp message types:- **text**: Plain text messages with optional URL preview- **image**: Images with optional caption- **video**: Videos with optional caption- **audio**: Audio files- **document**: Documents with optional caption and filename- **sticker**: Stickers- **location**: Location sharing- **contacts**: Contact cards- **interactive**: Interactive messages (buttons, lists, flows)- **template**: Message templates- **reaction**: Emoji reactions to messages
+        /// Send a WhatsApp message to a recipient.Use `to` for phone numbers. Use `recipient` for a BSUID or parent BSUID.If both are present, the phone number in `to` takes precedence.Supports all WhatsApp message types:- **text**: Plain text messages with optional URL preview- **image**: Images with optional caption- **video**: Videos with optional caption- **audio**: Audio files- **document**: Documents with optional caption and filename- **sticker**: Stickers- **location**: Location sharing- **contacts**: Contact cards- **interactive**: Interactive messages (buttons, lists, flows)- **template**: Message templates- **reaction**: Emoji reactions to messagesOn a [shared number](/docs/whatsapp/conversation-routing), regular messages need Kapso to handlethe conversation. Templates can always be sent.
         /// </summary>
         /// <returns>A <see cref="global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.SendMessageResponse"/></returns>
         /// <param name="body">The request body</param>
@@ -84,7 +84,6 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Messages
         /// <exception cref="global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.Error">When receiving a 401 status code</exception>
         /// <exception cref="global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Messages.SendMessageResponse402Error">When receiving a 402 status code</exception>
         /// <exception cref="global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.Error">When receiving a 404 status code</exception>
-        /// <exception cref="global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.Error">When receiving a 409 status code</exception>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
         public async Task<global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.SendMessageResponse?> PostAsync(global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Messages.MessagesRequestBuilder.MessagesPostRequestBody body, Action<RequestConfiguration<DefaultQueryParameters>>? requestConfiguration = default, CancellationToken cancellationToken = default)
@@ -102,7 +101,6 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Messages
                 { "401", global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.Error.CreateFromDiscriminatorValue },
                 { "402", global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Messages.SendMessageResponse402Error.CreateFromDiscriminatorValue },
                 { "404", global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.Error.CreateFromDiscriminatorValue },
-                { "409", global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.Error.CreateFromDiscriminatorValue },
             };
             return await RequestAdapter.SendAsync<global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.SendMessageResponse>(requestInfo, global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.SendMessageResponse.CreateFromDiscriminatorValue, errorMapping, cancellationToken).ConfigureAwait(false);
         }
@@ -126,7 +124,7 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Messages
             return requestInfo;
         }
         /// <summary>
-        /// Send a WhatsApp message to a recipient.Use `to` for phone numbers. Use `recipient` for a BSUID or parent BSUID.If both are present, the phone number in `to` takes precedence.Supports all WhatsApp message types:- **text**: Plain text messages with optional URL preview- **image**: Images with optional caption- **video**: Videos with optional caption- **audio**: Audio files- **document**: Documents with optional caption and filename- **sticker**: Stickers- **location**: Location sharing- **contacts**: Contact cards- **interactive**: Interactive messages (buttons, lists, flows)- **template**: Message templates- **reaction**: Emoji reactions to messages
+        /// Send a WhatsApp message to a recipient.Use `to` for phone numbers. Use `recipient` for a BSUID or parent BSUID.If both are present, the phone number in `to` takes precedence.Supports all WhatsApp message types:- **text**: Plain text messages with optional URL preview- **image**: Images with optional caption- **video**: Videos with optional caption- **audio**: Audio files- **document**: Documents with optional caption and filename- **sticker**: Stickers- **location**: Location sharing- **contacts**: Contact cards- **interactive**: Interactive messages (buttons, lists, flows)- **template**: Message templates- **reaction**: Emoji reactions to messagesOn a [shared number](/docs/whatsapp/conversation-routing), regular messages need Kapso to handlethe conversation. Templates can always be sent.
         /// </summary>
         /// <returns>A <see cref="RequestInformation"/></returns>
         /// <param name="body">The request body</param>

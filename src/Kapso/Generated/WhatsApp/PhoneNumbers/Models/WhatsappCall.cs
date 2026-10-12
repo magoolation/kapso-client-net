@@ -48,8 +48,14 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
 #endif
         /// <summary>Record creation timestamp</summary>
         public DateTimeOffset? CreatedAt { get; set; }
-        /// <summary>Call direction</summary>
-        public global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.WhatsappCall_direction? Direction { get; set; }
+        /// <summary>Stored direction. Meta calls use USER_INITIATED or BUSINESS_INITIATED; legacy records retain their original values. May be absent before the connect event arrives.</summary>
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+#nullable enable
+        public string? Direction { get; set; }
+#nullable restore
+#else
+        public string Direction { get; set; }
+#endif
         /// <summary>Call duration in seconds</summary>
         public int? DurationSeconds { get; set; }
         /// <summary>Call end time</summary>
@@ -90,8 +96,14 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
         public DateTimeOffset? SessionStartedAt { get; set; }
         /// <summary>Call start time</summary>
         public DateTimeOffset? StartedAt { get; set; }
-        /// <summary>Call status</summary>
-        public global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.WhatsappCall_status? Status { get; set; }
+        /// <summary>Stored lifecycle status, such as RINGING, ACCEPTED, REJECTED, or COMPLETED. Retains provider casing and may be absent before a status or termination event arrives.</summary>
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+#nullable enable
+        public string? Status { get; set; }
+#nullable restore
+#else
+        public string Status { get; set; }
+#endif
         /// <summary>Record update timestamp</summary>
         public DateTimeOffset? UpdatedAt { get; set; }
         /// <summary>WhatsApp username when available</summary>
@@ -180,7 +192,7 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
                 { "config_display_name", n => { ConfigDisplayName = n.GetStringValue(); } },
                 { "config_display_phone_number", n => { ConfigDisplayPhoneNumber = n.GetStringValue(); } },
                 { "created_at", n => { CreatedAt = n.GetDateTimeOffsetValue(); } },
-                { "direction", n => { Direction = n.GetEnumValue<global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.WhatsappCall_direction>(); } },
+                { "direction", n => { Direction = n.GetStringValue(); } },
                 { "duration_seconds", n => { DurationSeconds = n.GetIntValue(); } },
                 { "ended_at", n => { EndedAt = n.GetDateTimeOffsetValue(); } },
                 { "id", n => { Id = n.GetStringValue(); } },
@@ -189,7 +201,7 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
                 { "project_id", n => { ProjectId = n.GetStringValue(); } },
                 { "session_started_at", n => { SessionStartedAt = n.GetDateTimeOffsetValue(); } },
                 { "started_at", n => { StartedAt = n.GetDateTimeOffsetValue(); } },
-                { "status", n => { Status = n.GetEnumValue<global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.WhatsappCall_status>(); } },
+                { "status", n => { Status = n.GetStringValue(); } },
                 { "updated_at", n => { UpdatedAt = n.GetDateTimeOffsetValue(); } },
                 { "user_wa_id", n => { UserWaId = n.GetStringValue(); } },
                 { "username", n => { Username = n.GetStringValue(); } },
@@ -212,7 +224,7 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
             writer.WriteStringValue("config_display_name", ConfigDisplayName);
             writer.WriteStringValue("config_display_phone_number", ConfigDisplayPhoneNumber);
             writer.WriteDateTimeOffsetValue("created_at", CreatedAt);
-            writer.WriteEnumValue<global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.WhatsappCall_direction>("direction", Direction);
+            writer.WriteStringValue("direction", Direction);
             writer.WriteIntValue("duration_seconds", DurationSeconds);
             writer.WriteDateTimeOffsetValue("ended_at", EndedAt);
             writer.WriteStringValue("id", Id);
@@ -221,7 +233,7 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
             writer.WriteStringValue("project_id", ProjectId);
             writer.WriteDateTimeOffsetValue("session_started_at", SessionStartedAt);
             writer.WriteDateTimeOffsetValue("started_at", StartedAt);
-            writer.WriteEnumValue<global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.WhatsappCall_status>("status", Status);
+            writer.WriteStringValue("status", Status);
             writer.WriteDateTimeOffsetValue("updated_at", UpdatedAt);
             writer.WriteStringValue("username", Username);
             writer.WriteStringValue("user_wa_id", UserWaId);

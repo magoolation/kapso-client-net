@@ -22,7 +22,7 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Call_permissions
         /// </summary>
         /// <param name="pathParameters">Path parameters for the request</param>
         /// <param name="requestAdapter">The request adapter to use to execute the requests.</param>
-        public Call_permissionsRequestBuilder(Dictionary<string, object> pathParameters, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/{phone_number_id}/call_permissions?user_wa_id={user_wa_id}", pathParameters)
+        public Call_permissionsRequestBuilder(Dictionary<string, object> pathParameters, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/{phone_number_id}/call_permissions{?recipient*,user_wa_id*}", pathParameters)
         {
         }
         /// <summary>
@@ -30,11 +30,11 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Call_permissions
         /// </summary>
         /// <param name="rawUrl">The raw URL to use for the request builder.</param>
         /// <param name="requestAdapter">The request adapter to use to execute the requests.</param>
-        public Call_permissionsRequestBuilder(string rawUrl, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/{phone_number_id}/call_permissions?user_wa_id={user_wa_id}", rawUrl)
+        public Call_permissionsRequestBuilder(string rawUrl, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/{phone_number_id}/call_permissions{?recipient*,user_wa_id*}", rawUrl)
         {
         }
         /// <summary>
-        /// Get the call permission state for a business phone number with a specific WhatsApp user.**Proxy endpoint**: Proxies directly to Meta Graph API.Returns the current permission status and available actions with their limits. Permission can be:- **no_permission**: No calling permission granted- **temporary**: Temporary permission with expiration timeActions include:- **send_call_permission_request**: Send permission request message- **start_call**: Initiate a callEach action has time-based limits (e.g., max 2 permission requests per 24 hours).
+        /// Get the call permission state for a business phone number with a specific WhatsApp user.**Proxy endpoint**: Proxies directly to Meta Graph API.Returns the current permission status and available actions with their limits. Permission can be:- **no_permission**: No calling permission granted- **temporary**: Temporary permission with expiration time- **permanent**: Permission without a temporary expirationIdentify the user with `user_wa_id` (phone number) or `recipient` (business-scoped user ID).Require an `actions[]` item with `action_name: start_call` and `can_perform_action: true` before dialing; permission status alone is insufficient.Actions include:- **send_call_permission_request**: Send permission request message- **start_call**: Initiate a callEach action has time-based limits (e.g., max 2 permission requests per 24 hours).
         /// </summary>
         /// <returns>A <see cref="global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Call_permissions.Call_permissionsGetResponse"/></returns>
         /// <param name="cancellationToken">Cancellation token to use when cancelling requests</param>
@@ -61,7 +61,7 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Call_permissions
             return await RequestAdapter.SendAsync<global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Call_permissions.Call_permissionsGetResponse>(requestInfo, global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Call_permissions.Call_permissionsGetResponse.CreateFromDiscriminatorValue, errorMapping, cancellationToken).ConfigureAwait(false);
         }
         /// <summary>
-        /// Get the call permission state for a business phone number with a specific WhatsApp user.**Proxy endpoint**: Proxies directly to Meta Graph API.Returns the current permission status and available actions with their limits. Permission can be:- **no_permission**: No calling permission granted- **temporary**: Temporary permission with expiration timeActions include:- **send_call_permission_request**: Send permission request message- **start_call**: Initiate a callEach action has time-based limits (e.g., max 2 permission requests per 24 hours).
+        /// Get the call permission state for a business phone number with a specific WhatsApp user.**Proxy endpoint**: Proxies directly to Meta Graph API.Returns the current permission status and available actions with their limits. Permission can be:- **no_permission**: No calling permission granted- **temporary**: Temporary permission with expiration time- **permanent**: Permission without a temporary expirationIdentify the user with `user_wa_id` (phone number) or `recipient` (business-scoped user ID).Require an `actions[]` item with `action_name: start_call` and `can_perform_action: true` before dialing; permission status alone is insufficient.Actions include:- **send_call_permission_request**: Send permission request message- **start_call**: Initiate a callEach action has time-based limits (e.g., max 2 permission requests per 24 hours).
         /// </summary>
         /// <returns>A <see cref="RequestInformation"/></returns>
         /// <param name="requestConfiguration">Configuration for the request such as headers, query parameters, and middleware options.</param>
@@ -89,12 +89,22 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Call_permissions
             return new global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Call_permissions.Call_permissionsRequestBuilder(rawUrl, RequestAdapter);
         }
         /// <summary>
-        /// Get the call permission state for a business phone number with a specific WhatsApp user.**Proxy endpoint**: Proxies directly to Meta Graph API.Returns the current permission status and available actions with their limits. Permission can be:- **no_permission**: No calling permission granted- **temporary**: Temporary permission with expiration timeActions include:- **send_call_permission_request**: Send permission request message- **start_call**: Initiate a callEach action has time-based limits (e.g., max 2 permission requests per 24 hours).
+        /// Get the call permission state for a business phone number with a specific WhatsApp user.**Proxy endpoint**: Proxies directly to Meta Graph API.Returns the current permission status and available actions with their limits. Permission can be:- **no_permission**: No calling permission granted- **temporary**: Temporary permission with expiration time- **permanent**: Permission without a temporary expirationIdentify the user with `user_wa_id` (phone number) or `recipient` (business-scoped user ID).Require an `actions[]` item with `action_name: start_call` and `can_perform_action: true` before dialing; permission status alone is insufficient.Actions include:- **send_call_permission_request**: Send permission request message- **start_call**: Initiate a callEach action has time-based limits (e.g., max 2 permission requests per 24 hours).
         /// </summary>
         [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
         public partial class Call_permissionsRequestBuilderGetQueryParameters 
         {
-            /// <summary>WhatsApp ID of the user (phone number)</summary>
+            /// <summary>Business-scoped user ID (BSUID) or parent BSUID. Use instead of user_wa_id.</summary>
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+#nullable enable
+            [QueryParameter("recipient")]
+            public string? Recipient { get; set; }
+#nullable restore
+#else
+            [QueryParameter("recipient")]
+            public string Recipient { get; set; }
+#endif
+            /// <summary>WhatsApp ID of the user (phone number). Required unless recipient is provided.</summary>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
             [QueryParameter("user_wa_id")]

@@ -15,7 +15,7 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Messages
     {
         /// <summary>Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.</summary>
         public IDictionary<string, object> AdditionalData { get; set; }
-        /// <summary>Kapso billing page where credits can be added</summary>
+        /// <summary>Kapso billing page where credits can be added. Returned with `insufficient_credits`.</summary>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
         public string? BillingUrl { get; set; }
@@ -23,7 +23,7 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Messages
 #else
         public string BillingUrl { get; set; }
 #endif
-        /// <summary>The code property</summary>
+        /// <summary>`insufficient_credits` - the project balance does not cover the fee for this message.`service_credits_exhausted` - paid sends are paused because the project has a settled service charge and a balance at or below zero. Add credits to resume.`service_catalog_missing` - service billing is not provisioned for this number yet.`service_region_missing` - the recipient&apos;s pricing region could not be determined.`service_rate_unprepared`, `service_rate_mismatch` - Meta&apos;s published service rate for the recipient&apos;s market is not available.`waba_timezone_missing` - the WhatsApp Business Account timezone is not supported, so the delivery date cannot be priced.`pricing_missing` - no Meta rate applies to the resolved region and date.</summary>
         public global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Messages.SendMessageResponse402Error_code? Code { get; set; }
         /// <summary>Human-readable error message</summary>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER

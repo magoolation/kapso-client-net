@@ -31,7 +31,7 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
 #else
         public string Country { get; set; }
 #endif
-        /// <summary>Button label text (for cta_url)</summary>
+        /// <summary>Button label text (for cta_url and voice_call). Defaults to &quot;Call Now&quot; for voice_call.</summary>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
         public string? DisplayText { get; set; }
@@ -91,6 +91,14 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
 #endif
         /// <summary>Flow mode (for flow, defaults to published if omitted)</summary>
         public global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.InteractiveMessage_action_parameters_mode? Mode { get; set; }
+        /// <summary>Tracking string returned as cta_payload in call webhooks (for voice_call).</summary>
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+#nullable enable
+        public string? Payload { get; set; }
+#nullable restore
+#else
+        public string Payload { get; set; }
+#endif
         /// <summary>Product ID in the catalog (for product)</summary>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
@@ -123,6 +131,8 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
 #else
         public string ThumbnailProductRetailerId { get; set; }
 #endif
+        /// <summary>Minutes the call button stays active (for voice_call). Defaults to 10080 (7 days).</summary>
+        public int? TtlMinutes { get; set; }
         /// <summary>URL to open (for cta_url)</summary>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
@@ -183,10 +193,12 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
                 { "flow_name", n => { FlowName = n.GetStringValue(); } },
                 { "flow_token", n => { FlowToken = n.GetStringValue(); } },
                 { "mode", n => { Mode = n.GetEnumValue<global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.InteractiveMessage_action_parameters_mode>(); } },
+                { "payload", n => { Payload = n.GetStringValue(); } },
                 { "product_retailer_id", n => { ProductRetailerId = n.GetStringValue(); } },
                 { "saved_addresses", n => { SavedAddresses = n.GetCollectionOfObjectValues<global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.InteractiveMessage_action_parameters_saved_addresses>(global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.InteractiveMessage_action_parameters_saved_addresses.CreateFromDiscriminatorValue)?.AsList(); } },
                 { "sections", n => { Sections = n.GetCollectionOfObjectValues<global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.InteractiveMessage_action_parameters_sections>(global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.InteractiveMessage_action_parameters_sections.CreateFromDiscriminatorValue)?.AsList(); } },
                 { "thumbnail_product_retailer_id", n => { ThumbnailProductRetailerId = n.GetStringValue(); } },
+                { "ttl_minutes", n => { TtlMinutes = n.GetIntValue(); } },
                 { "url", n => { Url = n.GetStringValue(); } },
                 { "validation_errors", n => { ValidationErrors = n.GetObjectValue<global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.InteractiveMessage_action_parameters_validation_errors>(global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.InteractiveMessage_action_parameters_validation_errors.CreateFromDiscriminatorValue); } },
                 { "values", n => { Values = n.GetObjectValue<global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.InteractiveMessage_action_parameters_values>(global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.InteractiveMessage_action_parameters_values.CreateFromDiscriminatorValue); } },
@@ -210,10 +222,12 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
             writer.WriteStringValue("flow_name", FlowName);
             writer.WriteStringValue("flow_token", FlowToken);
             writer.WriteEnumValue<global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.InteractiveMessage_action_parameters_mode>("mode", Mode);
+            writer.WriteStringValue("payload", Payload);
             writer.WriteStringValue("product_retailer_id", ProductRetailerId);
             writer.WriteCollectionOfObjectValues<global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.InteractiveMessage_action_parameters_saved_addresses>("saved_addresses", SavedAddresses);
             writer.WriteCollectionOfObjectValues<global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.InteractiveMessage_action_parameters_sections>("sections", Sections);
             writer.WriteStringValue("thumbnail_product_retailer_id", ThumbnailProductRetailerId);
+            writer.WriteIntValue("ttl_minutes", TtlMinutes);
             writer.WriteStringValue("url", Url);
             writer.WriteObjectValue<global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.InteractiveMessage_action_parameters_validation_errors>("validation_errors", ValidationErrors);
             writer.WriteObjectValue<global::Kapso.Generated.WhatsApp.PhoneNumbers.Models.InteractiveMessage_action_parameters_values>("values", Values);

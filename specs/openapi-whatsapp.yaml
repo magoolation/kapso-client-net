@@ -117,6 +117,43 @@ components:
               type: string
               description: Facebook trace ID for debugging
               example: AXk7s_8dR4eVHp9Kq2MmNlO
+    MessageInFlightError:
+      type: object
+      description: Another message to this recipient is still being sent. Wait and retry.
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: Another message is already in-flight for this conversation. Please retry shortly.
+    ThreadOwnershipError:
+      type: object
+      description: |
+        Shared numbers only. Another app handles the conversation, so the regular message was refused
+        before reaching Meta. Send a template, or take over the conversation.
+      required:
+        - error
+        - code
+        - thread_error
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: Another app controls this conversation. Automated Service messages are blocked; templates are still allowed.
+        code:
+          type: string
+          description: |
+            `meta_business_agent_control` on numbers with Meta Business Agent; `thread_error` has the
+            specific reason.
+          enum:
+            - thread_not_owner
+            - thread_ownership_unknown
+            - meta_business_agent_control
+        thread_error:
+          type: string
+          enum:
+            - thread_not_owner
+            - thread_ownership_unknown
     MarketingPreferenceStoppedError:
       type: object
       description: Returned when the recipient asked WhatsApp to stop marketing
@@ -564,6 +601,7 @@ components:
             - product_list
             - call_permission_request
             - catalog_message
+            - voice_call
           description: |-
             Interactive message type:
             - button: Reply buttons (up to 3)
@@ -580,6 +618,7 @@ components:
             - product_list: Multi-product message (up to 30 products)
             - call_permission_request: Request permission to call
             - catalog_message: Browse full catalog
+            - voice_call: Button the user taps to call your business on WhatsApp
         body:
           type: object
           description: |-
@@ -636,6 +675,7 @@ components:
             - type=address_message: Requires `name="address_message"` and `parameters` with country
             - type=order_details: Requires `name="review_and_pay"` and a `parameters` object
             - type=order_status: Requires `name="review_order"` and a `parameters` object
+            - type=voice_call: Requires `name="voice_call"`. `parameters` is optional.
           properties:
             buttons:
               type: array
@@ -812,6 +852,7 @@ components:
                 - "flow" for WhatsApp Flows
                 - "call_permission_request" for call permission request
                 - "catalog_message" for catalog browse
+                - "voice_call" for the WhatsApp call button
               enum:
                 - cta_url
                 - send_location
@@ -820,6 +861,7 @@ components:
                 - flow
                 - call_permission_request
                 - catalog_message
+                - voice_call
               example: cta_url
             parameters:
               type: object
@@ -827,9 +869,20 @@ components:
               properties:
                 display_text:
                   type: string
-                  description: Button label text (for cta_url)
+                  description: Button label text (for cta_url and voice_call). Defaults to "Call Now" for voice_call.
                   maxLength: 20
                   example: Visit Website
+                ttl_minutes:
+                  type: integer
+                  description: Minutes the call button stays active (for voice_call). Defaults to 10080 (7 days).
+                  minimum: 1
+                  maximum: 43200
+                  example: 1440
+                payload:
+                  type: string
+                  description: Tracking string returned as cta_payload in call webhooks (for voice_call).
+                  maxLength: 512
+                  example: promo-2026-09
                 url:
                   type: string
                   format: uri
@@ -1590,6 +1643,31 @@ components:
               nullable: true
               description: Timestamp of last outbound message (ISO 8601)
               example: 2024-01-15T14:25:00.000000Z
+    CallCaptureOption:
+      type: object
+      description: |
+        Meta native recording or transcription for this call. Send on `connect` or `accept`, never on
+        `pre_accept`. Kapso forwards it to Meta unchanged. With both enabled, Meta plays one combined
+        announcement using the `recording` object's `purpose` and `announcement_language`.
+        See [Recordings and transcripts](/docs/whatsapp/calling/recordings-and-transcripts).
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ENABLED
+            - DISABLED
+          example: ENABLED
+        purpose:
+          type: string
+          maxLength: 250
+          description: Required when `status` is `ENABLED`. Read aloud to both participants before capture starts.
+          example: control de calidad
+        announcement_language:
+          type: string
+          description: Required when `status` is `ENABLED`. Announcement locale, for example `en_US`, `es`, or `pt`.
+          example: es
     WhatsappCall:
       type: object
       required:
@@ -1608,21 +1686,14 @@ components:
           example: call_abc123
         direction:
           type: string
-          enum:
-            - inbound
-            - outbound
-          description: Call direction
-          example: inbound
+          nullable: true
+          description: Stored direction. Meta calls use USER_INITIATED or BUSINESS_INITIATED; legacy records retain their original values. May be absent before the connect event arrives.
+          example: USER_INITIATED
         status:
           type: string
-          enum:
-            - initiated
-            - ringing
-            - answered
-            - completed
-            - failed
-          description: Call status
-          example: completed
+          nullable: true
+          description: Stored lifecycle status, such as RINGING, ACCEPTED, REJECTED, or COMPLETED. Retains provider casing and may be absent before a status or termination event arrives.
+          example: COMPLETED
         duration_seconds:
           type: integer
           nullable: true
@@ -2283,7 +2354,22 @@ paths:
         - **interactive**: Interactive messages (buttons, lists, flows)
         - **template**: Message templates
         - **reaction**: Emoji reactions to messages
+
+        On a [shared number](/docs/whatsapp/conversation-routing), regular messages need Kapso to handle
+        the conversation. Templates can always be sent.
       operationId: sendMessage
+      parameters:
+        - name: X-Kapso-Take-Control
+          in: header
+          required: false
+          description: |
+            Shared numbers only. Set to `true` to send even though another app handles the
+            conversation. Meta accepts it only when Kapso is your escalation app, and the send
+            takes the conversation.
+          schema:
+            type: string
+            enum:
+              - "true"
       requestBody:
         required: true
         content:
@@ -2898,6 +2984,23 @@ paths:
                       name: call_permission_request
                     body:
                       text: We would like to call you to help with your order.
+              interactive_voice_call:
+                summary: Voice call button
+                value:
+                  messaging_product: whatsapp
+                  recipient_type: individual
+                  to: "15551234567"
+                  type: interactive
+                  interactive:
+                    type: voice_call
+                    body:
+                      text: Need help with your order? Call us.
+                    action:
+                      name: voice_call
+                      parameters:
+                        display_text: Call support
+                        ttl_minutes: 1440
+                        payload: order-4471
               interactive_product:
                 summary: Single product message
                 value:
@@ -3120,7 +3223,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "402":
-          description: Project has insufficient Kapso credits for Meta messaging fees
+          description: Project cannot be charged for Meta messaging fees
           content:
             application/json:
               schema:
@@ -3128,19 +3231,39 @@ paths:
                 required:
                   - error
                   - code
-                  - billing_url
                 properties:
                   error:
                     type: string
                     description: Human-readable error message
                   code:
                     type: string
+                    description: |
+                      `insufficient_credits` - the project balance does not cover the fee for this message.
+
+                      `service_credits_exhausted` - paid sends are paused because the project has a settled service charge and a balance at or below zero. Add credits to resume.
+
+                      `service_catalog_missing` - service billing is not provisioned for this number yet.
+
+                      `service_region_missing` - the recipient's pricing region could not be determined.
+
+                      `service_rate_unprepared`, `service_rate_mismatch` - Meta's published service rate for the recipient's market is not available.
+
+                      `waba_timezone_missing` - the WhatsApp Business Account timezone is not supported, so the delivery date cannot be priced.
+
+                      `pricing_missing` - no Meta rate applies to the resolved region and date.
                     enum:
                       - insufficient_credits
+                      - service_credits_exhausted
+                      - service_catalog_missing
+                      - service_region_missing
+                      - service_rate_unprepared
+                      - service_rate_mismatch
+                      - waba_timezone_missing
+                      - pricing_missing
                   billing_url:
                     type: string
                     format: uri
-                    description: Kapso billing page where credits can be added
+                    description: Kapso billing page where credits can be added. Returned with `insufficient_credits`.
               example:
                 error: Your Kapso balance doesn't cover Meta's fee for this message.
                 code: insufficient_credits
@@ -3152,17 +3275,29 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "409":
-          description: Conflict - Another message is already being sent to this recipient
+          description: Conflict - Another message is already being sent to this recipient, or another app handles the conversation
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                oneOf:
+                  - $ref: "#/components/schemas/MessageInFlightError"
+                  - $ref: "#/components/schemas/ThreadOwnershipError"
               examples:
                 message_in_flight:
                   summary: Message already in-flight
                   description: A message is currently being sent to this recipient. Wait and retry.
                   value:
                     error: Another message is already in-flight for this conversation. Please retry shortly.
+                thread_not_owner:
+                  summary: Another app handles the conversation
+                  description: |
+                    Shared numbers only. `code` is `thread_not_owner` or `thread_ownership_unknown`
+                    (`meta_business_agent_control` on numbers with Meta Business Agent, with the specific
+                    reason in `thread_error`). Send a template or take over the conversation.
+                  value:
+                    error: Another app controls this conversation. Automated Service messages are blocked; templates are still allowed.
+                    code: thread_not_owner
+                    thread_error: thread_not_owner
         "422":
           description: Unprocessable Entity
           content:
@@ -3825,6 +3960,142 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /{phone_number_id}/thread_control:
+    parameters:
+      - name: phone_number_id
+        in: path
+        required: true
+        description: WhatsApp Business Phone Number ID
+        schema:
+          type: string
+        example: "110987654321"
+    post:
+      tags:
+        - Conversations
+      summary: Pass, release or take a conversation
+      description: |
+        Move a conversation between apps on a [shared number](/docs/whatsapp/conversation-routing).
+
+        **Proxy endpoint**: The body is forwarded to Meta unchanged and Meta's response is returned
+        unchanged. Kapso records the call and updates the conversation's routing state.
+
+        Only your escalation app can `take`. Kapso never retries: a `502` means the result is
+        unknown and the action may have gone through.
+      operationId: threadControl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - messaging_product
+                - action
+              anyOf:
+                - required:
+                    - to
+                - required:
+                    - recipient
+              properties:
+                messaging_product:
+                  type: string
+                  enum:
+                    - whatsapp
+                action:
+                  type: string
+                  enum:
+                    - take
+                    - release
+                    - pass
+                to:
+                  type: string
+                  description: Customer phone number. Use `to` or `recipient`.
+                  example: "15551234567"
+                recipient:
+                  type: string
+                  description: Customer business-scoped user ID. Use `to` or `recipient`.
+                  example: US.13491208655302741918
+                control_pass:
+                  type: object
+                  description: Pass only. Without it, the conversation goes to the escalation app.
+                  properties:
+                    target_role:
+                      type: string
+                      enum:
+                        - escalation
+                        - ai_agent
+                        - customer_service
+                        - marketing
+                        - utility
+                        - ctwa
+                metadata:
+                  type: string
+                  maxLength: 2000
+                  description: Passed to the app that receives the conversation.
+            examples:
+              pass:
+                summary: Pass to the escalation app
+                value:
+                  messaging_product: whatsapp
+                  to: "15551234567"
+                  action: pass
+                  control_pass:
+                    target_role: escalation
+                  metadata: Customer asked for a human
+              take:
+                summary: Take the conversation
+                value:
+                  messaging_product: whatsapp
+                  recipient: US.13491208655302741918
+                  action: take
+              release:
+                summary: Release the conversation
+                value:
+                  messaging_product: whatsapp
+                  to: "15551234567"
+                  action: release
+      responses:
+        "200":
+          description: Meta accepted the action
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messaging_product:
+                    type: string
+                    example: whatsapp
+                  request_id:
+                    type: string
+                    description: Present when Meta returns it
+        "403":
+          description: Meta refused the action, for example error code `2494191` when Kapso may not take the conversation
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error:
+                  code: 2494191
+                  message: You are not permitted to take thread control for this phone number.
+        "409":
+          description: Another action for this conversation is still in progress
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: thread_control_in_progress
+                detail: Another control action for this conversation is still in progress.
+        "502":
+          description: Meta did not answer; the result is unknown. Do not retry automatically.
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: Meta API request failed
+                detail: The thread control result is unknown. Do not retry automatically.
   /{phone_number_id}/contacts:
     parameters:
       - name: phone_number_id
@@ -4009,18 +4280,29 @@ paths:
 
         **Kapso Extension**: This endpoint returns call records stored in Kapso's database, not Meta's API.
 
-        Supports filtering by direction, status, and time range. Uses cursor-based pagination.
+        Supports filtering by Meta call ID, direction, status, and time range. Uses cursor-based pagination.
       operationId: listCalls
       parameters:
+        - name: call_id
+          in: query
+          description: >-
+            Exact Meta call ID, scoped to this phone number and project. An unknown ID returns an
+            empty `data` array. Must be a single string; array or object values return 400. Use the
+            returned `id` (Kapso call UUID) to fetch [recordings and transcripts](/docs/whatsapp/calling/recordings-and-transcripts).
+          schema:
+            type: string
+          example: wacid.ABGGFjFVU2AfAgo6V-Hc5eCgK5Gh
         - name: direction
           in: query
-          description: Filter by call direction
+          description: Match the stored direction (case insensitive). Meta calls use USER_INITIATED or BUSINESS_INITIATED; older records may use INBOUND or OUTBOUND.
           schema:
             type: string
             enum:
+              - user_initiated
+              - business_initiated
               - inbound
               - outbound
-          example: inbound
+          example: user_initiated
         - name: status
           in: query
           description: Filter by call status
@@ -4159,6 +4441,10 @@ paths:
       description: |
         Perform various call actions via the WhatsApp Calling API.
 
+        Start with [Calling setup](/docs/whatsapp/calling/overview), then
+        [receive calls](/docs/whatsapp/calling/receive-calls) or
+        [make outbound calls](/docs/whatsapp/calling/outbound-calls).
+
         **Proxy endpoint**: Proxies directly to Meta Graph API.
 
         Supports the following actions:
@@ -4221,6 +4507,10 @@ paths:
                   description: Arbitrary tracking string (max 512 chars, optional for connect/accept)
                   maxLength: 512
                   example: tracking_id_12345
+                recording:
+                  $ref: "#/components/schemas/CallCaptureOption"
+                transcription:
+                  $ref: "#/components/schemas/CallCaptureOption"
             examples:
               initiate_call:
                 summary: Initiate outbound call (connect)
@@ -4351,6 +4641,23 @@ paths:
 
                       a=rtpmap:111 opus/48000/2\r\n"
                   biz_opaque_callback_data: session_tracking_xyz
+              accept_call_with_capture:
+                summary: Accept inbound call with recording and transcription
+                value:
+                  messaging_product: whatsapp
+                  call_id: wacid.ABGGFjFVU2AfAgo6V-Hc5eCgK5Gh
+                  action: accept
+                  session:
+                    sdp_type: answer
+                    sdp: ANSWER_SDP_FROM_YOUR_MEDIA_SERVER
+                  recording:
+                    status: ENABLED
+                    purpose: control de calidad
+                    announcement_language: es
+                  transcription:
+                    status: ENABLED
+                    purpose: control de calidad
+                    announcement_language: es
               reject_call:
                 summary: Reject inbound call
                 value:
@@ -5767,6 +6074,10 @@ paths:
         Returns the current permission status and available actions with their limits. Permission can be:
         - **no_permission**: No calling permission granted
         - **temporary**: Temporary permission with expiration time
+        - **permanent**: Permission without a temporary expiration
+
+        Identify the user with `user_wa_id` (phone number) or `recipient` (business-scoped user ID).
+        Require an `actions[]` item with `action_name: start_call` and `can_perform_action: true` before dialing; permission status alone is insufficient.
 
         Actions include:
         - **send_call_permission_request**: Send permission request message
@@ -5777,11 +6088,18 @@ paths:
       parameters:
         - name: user_wa_id
           in: query
-          required: true
-          description: WhatsApp ID of the user (phone number)
+          required: false
+          description: WhatsApp ID of the user (phone number). Required unless recipient is provided.
           schema:
             type: string
           example: "15551234567"
+        - name: recipient
+          in: query
+          required: false
+          description: Business-scoped user ID (BSUID) or parent BSUID. Use instead of user_wa_id.
+          schema:
+            type: string
+          example: US.13491208655302741918
       responses:
         "200":
           description: Permissions retrieved successfully
@@ -5809,6 +6127,7 @@ paths:
                         enum:
                           - no_permission
                           - temporary
+                          - permanent
                         description: Current permission status
                         example: temporary
                       expiration_time:
@@ -6586,16 +6905,17 @@ paths:
       description: |
         Retrieve detailed information about a specific flow.
 
-        By default returns: id, name, status, categories, validation_errors.
+        Send a nonblank `fields` query parameter to select the fields to return.
 
-        Use `fields` parameter to request additional information like preview URLs, health status, metrics, etc.
+        Include at least one nonblank query parameter: `phone_number_id` or `business_account_id`.
+        Kapso uses this context to select the connection and authorize access.
 
         **Proxy endpoint**: Proxies directly to Meta Graph API.
       operationId: getFlow
       parameters:
         - name: fields
           in: query
-          required: false
+          required: true
           description: |
             Comma-separated list of fields to retrieve.
 
@@ -6689,8 +7009,35 @@ paths:
       description: |
         Update flow name, categories, endpoint_uri, or application_id.
 
+        Include at least one nonblank query parameter: `phone_number_id` or `business_account_id`.
+        Kapso uses this context to select the connection and authorize access.
+
+        Send JSON or multipart form data. In form data, send `categories` as a JSON-encoded array string.
+
+        Rename a draft flow:
+
+        ```bash
+        curl -X POST "https://api.kapso.ai/meta/whatsapp/v24.0/FLOW_ID?phone_number_id=PHONE_NUMBER_ID" \
+          -H "X-API-Key: YOUR_PROJECT_API_KEY" \
+          -H "Content-Type: application/json" \
+          -d '{"name":"Updated Flow Name"}'
+        ```
+
         **Proxy endpoint**: Proxies directly to Meta Graph API.
       operationId: updateFlowMetadata
+      parameters:
+        - name: phone_number_id
+          in: query
+          required: false
+          description: Required when updating flow by ID (unless business_account_id provided)
+          schema:
+            type: string
+        - name: business_account_id
+          in: query
+          required: false
+          description: Required when updating flow by ID (unless phone_number_id provided)
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -6727,6 +7074,28 @@ paths:
               categories:
                 - APPOINTMENT_BOOKING
                 - CUSTOMER_SUPPORT
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Flow name
+                categories:
+                  type: string
+                  description: |
+                    JSON-encoded array of categories (at least one if provided).
+                    Allowed values: SIGN_UP, SIGN_IN, APPOINTMENT_BOOKING, LEAD_GENERATION, CONTACT_US, CUSTOMER_SUPPORT, SURVEY, OTHER.
+                  example: '["APPOINTMENT_BOOKING","CUSTOMER_SUPPORT"]'
+                endpoint_uri:
+                  type: string
+                  format: uri
+                  description: URL of the WhatsApp Flow Endpoint (for Flow JSON 3.0+)
+                application_id:
+                  type: string
+                  description: ID of the Meta application connected to the Flow
+            example:
+              name: Updated Flow Name
       responses:
         "200":
           description: Flow metadata updated successfully

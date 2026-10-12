@@ -1021,15 +1021,24 @@ components:
       properties:
         name:
           type: string
+          description: >-
+            Knowledge base name. Also used to derive the search tool name exposed
+            to the agent (a name of "FAQ" yields `search_faq`); colliding names get
+            a `_2`, `_3`, ... suffix.
         description:
           type:
             - string
             - "null"
+          description: >-
+            Included in the search tool description so the agent can tell this
+            knowledge base apart from the others on the same node.
         knowledge_base_text:
           type:
             - string
             - "null"
-          description: Inline knowledge base content available to the agent.
+          description: >-
+            Inline knowledge base content available to the agent. Searched by
+            keyword, line by line, so keep each line self-contained.
       additionalProperties: false
       description: Inline knowledge base attached to an agent node.
     WorkflowNodeAgentMcpServer:
@@ -1202,6 +1211,8 @@ components:
             Controls how assistant text becomes user-visible.
             - `auto_send_assistant_text`: normal assistant text responses are sent to the WhatsApp user automatically.
             - `tool_only`: normal assistant text is internal only; the agent must call `send_notification_to_user` to send user-visible messages.
+
+            `tool_only` requires a model that accepts forced tool calls. `claude-fable-5-1`, `claude-opus-5-5` and `claude-sonnet-5-5` are rejected with a `provider_model` validation error.
         enabled_default_tools:
           type: array
           items:
@@ -3180,11 +3191,6 @@ paths:
               - failed
               - handoff
           description: Filter by execution status
-        - name: waiting_reason
-          in: query
-          schema:
-            type: string
-          description: Filter waiting executions by reason (e.g., 'wait_for_response', 'timeout')
         - name: created_after
           in: query
           schema:

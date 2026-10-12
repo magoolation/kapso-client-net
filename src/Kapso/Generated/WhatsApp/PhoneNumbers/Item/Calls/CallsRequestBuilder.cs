@@ -22,7 +22,7 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Calls
         /// </summary>
         /// <param name="pathParameters">Path parameters for the request</param>
         /// <param name="requestAdapter">The request adapter to use to execute the requests.</param>
-        public CallsRequestBuilder(Dictionary<string, object> pathParameters, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/{phone_number_id}/calls{?after*,before*,direction*,fields*,limit*,since*,status*,until*}", pathParameters)
+        public CallsRequestBuilder(Dictionary<string, object> pathParameters, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/{phone_number_id}/calls{?after*,before*,call_id*,direction*,fields*,limit*,since*,status*,until*}", pathParameters)
         {
         }
         /// <summary>
@@ -30,11 +30,11 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Calls
         /// </summary>
         /// <param name="rawUrl">The raw URL to use for the request builder.</param>
         /// <param name="requestAdapter">The request adapter to use to execute the requests.</param>
-        public CallsRequestBuilder(string rawUrl, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/{phone_number_id}/calls{?after*,before*,direction*,fields*,limit*,since*,status*,until*}", rawUrl)
+        public CallsRequestBuilder(string rawUrl, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/{phone_number_id}/calls{?after*,before*,call_id*,direction*,fields*,limit*,since*,status*,until*}", rawUrl)
         {
         }
         /// <summary>
-        /// Retrieve a paginated list of WhatsApp voice calls.**Kapso Extension**: This endpoint returns call records stored in Kapso&apos;s database, not Meta&apos;s API.Supports filtering by direction, status, and time range. Uses cursor-based pagination.
+        /// Retrieve a paginated list of WhatsApp voice calls.**Kapso Extension**: This endpoint returns call records stored in Kapso&apos;s database, not Meta&apos;s API.Supports filtering by Meta call ID, direction, status, and time range. Uses cursor-based pagination.
         /// </summary>
         /// <returns>A <see cref="global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Calls.CallsGetResponse"/></returns>
         /// <param name="cancellationToken">Cancellation token to use when cancelling requests</param>
@@ -57,7 +57,7 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Calls
             return await RequestAdapter.SendAsync<global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Calls.CallsGetResponse>(requestInfo, global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Calls.CallsGetResponse.CreateFromDiscriminatorValue, errorMapping, cancellationToken).ConfigureAwait(false);
         }
         /// <summary>
-        /// Perform various call actions via the WhatsApp Calling API.**Proxy endpoint**: Proxies directly to Meta Graph API.Supports the following actions:- **connect**: Initiate an outbound call to a WhatsApp user- **pre_accept**: Pre-establish WebRTC connection before accepting call- **accept**: Accept an inbound call from a WhatsApp user- **reject**: Reject an inbound call- **terminate**: End an active call
+        /// Perform various call actions via the WhatsApp Calling API.Start with [Calling setup](/docs/whatsapp/calling/overview), then[receive calls](/docs/whatsapp/calling/receive-calls) or[make outbound calls](/docs/whatsapp/calling/outbound-calls).**Proxy endpoint**: Proxies directly to Meta Graph API.Supports the following actions:- **connect**: Initiate an outbound call to a WhatsApp user- **pre_accept**: Pre-establish WebRTC connection before accepting call- **accept**: Accept an inbound call from a WhatsApp user- **reject**: Reject an inbound call- **terminate**: End an active call
         /// </summary>
         /// <returns>A <see cref="global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Calls.CallsPostResponse"/></returns>
         /// <param name="body">The request body</param>
@@ -84,7 +84,7 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Calls
             return await RequestAdapter.SendAsync<global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Calls.CallsPostResponse>(requestInfo, global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Calls.CallsPostResponse.CreateFromDiscriminatorValue, errorMapping, cancellationToken).ConfigureAwait(false);
         }
         /// <summary>
-        /// Retrieve a paginated list of WhatsApp voice calls.**Kapso Extension**: This endpoint returns call records stored in Kapso&apos;s database, not Meta&apos;s API.Supports filtering by direction, status, and time range. Uses cursor-based pagination.
+        /// Retrieve a paginated list of WhatsApp voice calls.**Kapso Extension**: This endpoint returns call records stored in Kapso&apos;s database, not Meta&apos;s API.Supports filtering by Meta call ID, direction, status, and time range. Uses cursor-based pagination.
         /// </summary>
         /// <returns>A <see cref="RequestInformation"/></returns>
         /// <param name="requestConfiguration">Configuration for the request such as headers, query parameters, and middleware options.</param>
@@ -103,7 +103,7 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Calls
             return requestInfo;
         }
         /// <summary>
-        /// Perform various call actions via the WhatsApp Calling API.**Proxy endpoint**: Proxies directly to Meta Graph API.Supports the following actions:- **connect**: Initiate an outbound call to a WhatsApp user- **pre_accept**: Pre-establish WebRTC connection before accepting call- **accept**: Accept an inbound call from a WhatsApp user- **reject**: Reject an inbound call- **terminate**: End an active call
+        /// Perform various call actions via the WhatsApp Calling API.Start with [Calling setup](/docs/whatsapp/calling/overview), then[receive calls](/docs/whatsapp/calling/receive-calls) or[make outbound calls](/docs/whatsapp/calling/outbound-calls).**Proxy endpoint**: Proxies directly to Meta Graph API.Supports the following actions:- **connect**: Initiate an outbound call to a WhatsApp user- **pre_accept**: Pre-establish WebRTC connection before accepting call- **accept**: Accept an inbound call from a WhatsApp user- **reject**: Reject an inbound call- **terminate**: End an active call
         /// </summary>
         /// <returns>A <see cref="RequestInformation"/></returns>
         /// <param name="body">The request body</param>
@@ -134,7 +134,7 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Calls
             return new global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Calls.CallsRequestBuilder(rawUrl, RequestAdapter);
         }
         /// <summary>
-        /// Retrieve a paginated list of WhatsApp voice calls.**Kapso Extension**: This endpoint returns call records stored in Kapso&apos;s database, not Meta&apos;s API.Supports filtering by direction, status, and time range. Uses cursor-based pagination.
+        /// Retrieve a paginated list of WhatsApp voice calls.**Kapso Extension**: This endpoint returns call records stored in Kapso&apos;s database, not Meta&apos;s API.Supports filtering by Meta call ID, direction, status, and time range. Uses cursor-based pagination.
         /// </summary>
         [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
         public partial class CallsRequestBuilderGetQueryParameters 
@@ -159,7 +159,17 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Calls
             [QueryParameter("before")]
             public string Before { get; set; }
 #endif
-            /// <summary>Filter by call direction</summary>
+            /// <summary>Exact Meta call ID, scoped to this phone number and project. An unknown ID returns an empty `data` array. Must be a single string; array or object values return 400. Use the returned `id` (Kapso call UUID) to fetch [recordings and transcripts](/docs/whatsapp/calling/recordings-and-transcripts).</summary>
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+#nullable enable
+            [QueryParameter("call_id")]
+            public string? CallId { get; set; }
+#nullable restore
+#else
+            [QueryParameter("call_id")]
+            public string CallId { get; set; }
+#endif
+            /// <summary>Match the stored direction (case insensitive). Meta calls use USER_INITIATED or BUSINESS_INITIATED; older records may use INBOUND or OUTBOUND.</summary>
             [QueryParameter("direction")]
             public global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Calls.GetDirectionQueryParameterType? Direction { get; set; }
             /// <summary>Filter response fields</summary>

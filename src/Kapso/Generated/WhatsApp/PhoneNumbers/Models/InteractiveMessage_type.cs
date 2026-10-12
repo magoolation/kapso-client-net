@@ -3,7 +3,7 @@ using System.Runtime.Serialization;
 using System;
 namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
 {
-    /// <summary>Interactive message type:- button: Reply buttons (up to 3)- list: List picker (up to 10 rows across sections)- flow: WhatsApp Flow integration- cta_url: Call-to-action URL button- carousel: Free-form media carousel with 2-10 cards- location_request_message: Request user&apos;s location- request_contact_info: Request user&apos;s phone number and contact info- address_message: Address collection (India only)- order_details: Order for the user to review and pay (Brazil Pix)- order_status: Status update for a previously sent order- product: Single product message- product_list: Multi-product message (up to 30 products)- call_permission_request: Request permission to call- catalog_message: Browse full catalog</summary>
+    /// <summary>Interactive message type:- button: Reply buttons (up to 3)- list: List picker (up to 10 rows across sections)- flow: WhatsApp Flow integration- cta_url: Call-to-action URL button- carousel: Free-form media carousel with 2-10 cards- location_request_message: Request user&apos;s location- request_contact_info: Request user&apos;s phone number and contact info- address_message: Address collection (India only)- order_details: Order for the user to review and pay (Brazil Pix)- order_status: Status update for a previously sent order- product: Single product message- product_list: Multi-product message (up to 30 products)- call_permission_request: Request permission to call- catalog_message: Browse full catalog- voice_call: Button the user taps to call your business on WhatsApp</summary>
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     public enum InteractiveMessage_type
     {
@@ -62,6 +62,10 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Models
         [EnumMember(Value = "catalog_message")]
         #pragma warning disable CS1591
         Catalog_message,
+        #pragma warning restore CS1591
+        [EnumMember(Value = "voice_call")]
+        #pragma warning disable CS1591
+        Voice_call,
         #pragma warning restore CS1591
     }
 }

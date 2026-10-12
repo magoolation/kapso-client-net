@@ -8,6 +8,14 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item.Calls
     public enum GetDirectionQueryParameterType
     #pragma warning restore CS1591
     {
+        [EnumMember(Value = "user_initiated")]
+        #pragma warning disable CS1591
+        User_initiated,
+        #pragma warning restore CS1591
+        [EnumMember(Value = "business_initiated")]
+        #pragma warning disable CS1591
+        Business_initiated,
+        #pragma warning restore CS1591
         [EnumMember(Value = "inbound")]
         #pragma warning disable CS1591
         Inbound,

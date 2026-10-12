@@ -9,6 +9,7 @@ using Kapso.Generated.WhatsApp.PhoneNumbers.Item.Flows;
 using Kapso.Generated.WhatsApp.PhoneNumbers.Item.Marketing_messages;
 using Kapso.Generated.WhatsApp.PhoneNumbers.Item.Media;
 using Kapso.Generated.WhatsApp.PhoneNumbers.Item.Messages;
+using Kapso.Generated.WhatsApp.PhoneNumbers.Item.Thread_control;
 using Kapso.Generated.WhatsApp.PhoneNumbers.Item.Username;
 using Kapso.Generated.WhatsApp.PhoneNumbers.Item.Username_suggestions;
 using Kapso.Generated.WhatsApp.PhoneNumbers.Item.Whatsapp_business_profile;
@@ -73,6 +74,11 @@ namespace Kapso.Generated.WhatsApp.PhoneNumbers.Item
         public global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Messages.MessagesRequestBuilder Messages
         {
             get => new global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Messages.MessagesRequestBuilder(PathParameters, RequestAdapter);
+        }
+        /// <summary>The thread_control property</summary>
+        public global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Thread_control.Thread_controlRequestBuilder Thread_control
+        {
+            get => new global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Thread_control.Thread_controlRequestBuilder(PathParameters, RequestAdapter);
         }
         /// <summary>The username property</summary>
         public global::Kapso.Generated.WhatsApp.PhoneNumbers.Item.Username.UsernameRequestBuilder Username
